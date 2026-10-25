@@ -1,0 +1,3372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#070a0f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Червячки и жуки</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #070a0f;
+            font-family: 'Russo One', sans-serif;
+        }
+        .blue-gradient-text {
+            background: linear-gradient(135deg, #00E5FF 0%, #0077FF 50%, #7000FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .cyan-btn {
+            background: linear-gradient(180deg, #00E5FF 0%, #0055FF 100%);
+            border: 2px solid #80F5FF;
+            box-shadow: 0 4px 20px rgba(0, 229, 255, 0.4), inset 0 2px 4px rgba(255,255,255,0.7);
+            transition: all 0.2s ease;
+        }
+        .cyan-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 6px 25px rgba(0, 229, 255, 0.7), inset 0 2px 6px rgba(255,255,255,0.9);
+        }
+        .cyan-btn:active {
+            transform: translateY(1px);
+        }
+        .dark-blue-panel {
+            background: rgba(8, 14, 26, 0.94);
+            border: 2px solid #0088FF;
+            box-shadow: 0 0 30px rgba(0, 119, 255, 0.3), inset 0 0 20px rgba(0, 229, 255, 0.15);
+            backdrop-filter: blur(12px);
+        }
+        #joystickContainer {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 229, 255, 0.08);
+            border: 2px dashed rgba(0, 229, 255, 0.4);
+            border-radius: 50%;
+            display: none;
+            z-index: 20;
+            pointer-events: auto;
+        }
+        #joystickKnob {
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #00E5FF 0%, #0055FF 100%);
+            border: 2px solid #FFFFFF;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.8);
+        }
+        html { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+        body { height: 100vh; height: 100dvh; overscroll-behavior: none; }
+        input { font-size: 16px; } /* iOS не зумит страницу при вводе имени */
+        .menu-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+        /* HUD с учётом «чёлок» и закруглённых углов экранов */
+        .hud-tl { top: calc(0.75rem + env(safe-area-inset-top)); left: calc(0.75rem + env(safe-area-inset-left)); }
+        .hud-tr { top: calc(0.75rem + env(safe-area-inset-top)); right: calc(0.75rem + env(safe-area-inset-right)); width: 180px; }
+        .hud-bl { bottom: calc(0.75rem + env(safe-area-inset-bottom)); left: calc(0.75rem + env(safe-area-inset-left)); }
+        .hud-br { bottom: calc(1rem + env(safe-area-inset-bottom)); right: calc(1rem + env(safe-area-inset-right)); }
+        .hud-bc { bottom: calc(0.75rem + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
+        #minimap { width: 90px; height: 90px; }
+        #mobileBoostBtn { -webkit-user-select: none; touch-action: none; transition: transform 0.08s; }
+        #mobileBoostBtn.pressed { transform: scale(0.9); filter: brightness(1.25); }
+        #joystickContainer { position: fixed; bottom: auto; left: 0; top: 0; pointer-events: none; transition: opacity 0.15s; }
+
+        /* Телефоны (узкие экраны) и альбомная ориентация на телефонах (низкие экраны) */
+        @media (max-width: 640px), (max-height: 480px) {
+            .hud-tl { padding: 6px 9px !important; gap: 8px !important; }
+            .hud-tl #hudScore { font-size: 17px; }
+            .hud-tl #hudBugs, .hud-tl #hudPhones { font-size: 15px; }
+            .hud-tr { width: 128px; padding: 6px 8px !important; }
+            .hud-tr h3 { font-size: 10px; }
+            #leaderboardList { font-size: 10px !important; }
+            #leaderboardList li:nth-child(n+6) { display: none; }
+            #minimap { width: 74px; height: 74px; }
+            .hud-bc { bottom: auto; top: calc(3.9rem + env(safe-area-inset-top)); left: calc(0.75rem + env(safe-area-inset-left)); transform: none; text-align: left; padding: 4px 9px !important; }
+            #mainMenu h1 { font-size: 1.7rem; }
+        }
+        @media (max-height: 480px) {
+            /* альбомная ориентация: сжимаем меню */
+            #mainMenu .dark-blue-panel { padding: 14px !important; }
+            #mainMenu h1 { font-size: 1.4rem; margin-bottom: 2px; }
+        }
+        /* ---------- Анимации интерфейса ---------- */
+        @keyframes gradShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes popIn { 0% { opacity: 0; transform: translateY(22px) scale(.93); } 60% { opacity: 1; transform: translateY(-3px) scale(1.01); } 100% { opacity: 1; transform: none; } }
+        @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        @keyframes shimmer { 0% { transform: translateX(-150%) skewX(-20deg); } 55%, 100% { transform: translateX(350%) skewX(-20deg); } }
+        @keyframes glowFuchsia { 0%, 100% { box-shadow: 0 0 6px rgba(217,70,239,.3); } 50% { box-shadow: 0 0 20px rgba(217,70,239,.85); } }
+        @keyframes glowCyan { 0%, 100% { box-shadow: 0 0 4px rgba(0,229,255,.25); } 50% { box-shadow: 0 0 14px rgba(0,229,255,.8); } }
+        @keyframes tsarGlow { 0%, 100% { text-shadow: 0 0 6px #ffd54f; } 50% { text-shadow: 0 0 16px #ffab00, 0 0 28px #ffd54f; } }
+        .blue-gradient-text { background-size: 220% auto; animation: gradShift 6s ease-in-out infinite; }
+        #mainMenu h1.blue-gradient-text { animation: gradShift 6s ease-in-out infinite, floaty 3.6s ease-in-out infinite; }
+        .dark-blue-panel.rounded-2xl { animation: popIn .55s cubic-bezier(.2,.9,.3,1.15) both; }
+        #mainMenu .dark-blue-panel > *:nth-child(1) { animation: riseIn .5s ease both; animation-delay: 115ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(2) { animation: riseIn .5s ease both; animation-delay: 170ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(3) { animation: riseIn .5s ease both; animation-delay: 225ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(4) { animation: riseIn .5s ease both; animation-delay: 280ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(5) { animation: riseIn .5s ease both; animation-delay: 335ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(6) { animation: riseIn .5s ease both; animation-delay: 390ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(7) { animation: riseIn .5s ease both; animation-delay: 445ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(8) { animation: riseIn .5s ease both; animation-delay: 500ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(9) { animation: riseIn .5s ease both; animation-delay: 555ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(10) { animation: riseIn .5s ease both; animation-delay: 610ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(11) { animation: riseIn .5s ease both; animation-delay: 665ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(12) { animation: riseIn .5s ease both; animation-delay: 720ms; }
+        #mainMenu .dark-blue-panel > *:nth-child(13) { animation: riseIn .5s ease both; animation-delay: 775ms; }
+        .cyan-btn { position: relative; overflow: hidden; }
+        .cyan-btn::after { content: ''; position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); animation: shimmer 3.4s ease-in-out infinite; pointer-events: none; }
+        .glow-pulse { animation: glowFuchsia 2.2s ease-in-out infinite; }
+        .tile-eq { animation: glowCyan 2s ease-in-out infinite; }
+        .tsar-text { color: #ffd54f; animation: tsarGlow 1.6s ease-in-out infinite; }
+        button { transition: transform .15s ease, filter .15s ease; }
+        button:not(:disabled):hover { filter: brightness(1.14); }
+        button:not(:disabled):active { transform: scale(.96); }
+        @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
+
+        /* Прокручиваемые списки должны скроллиться пальцем, несмотря на глобальный touch-action: none */
+        .scroll-y, .scroll-y * { touch-action: pan-y !important; }
+        input { -webkit-user-select: text; user-select: text; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(2, 10, 25, 0.6); }
+        ::-webkit-scrollbar-thumb { background: #0088FF; border-radius: 3px; }
+    </style>
+</head>
+<body class="relative flex items-center justify-center min-h-screen">
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full block cursor-crosshair"></canvas>
+
+    <!-- Virtual Touch Joystick -->
+    <div id="joystickContainer">
+        <div id="joystickKnob"></div>
+    </div>
+
+    <!-- Main Menu Overlay -->
+    <canvas id="menuBg" class="absolute inset-0 w-full h-full" style="z-index:20;pointer-events:none"></canvas>
+    <div id="mainMenu" class="absolute inset-0 menu-scroll scroll-y z-30"><div class="min-h-full flex flex-col items-center justify-center p-4">
+        <div class="dark-blue-panel p-6 md:p-8 rounded-2xl max-w-md w-full text-center relative border-2 border-cyan-500">
+            <!-- Audio Toggle Button -->
+            <button id="soundToggleBtn" onclick="toggleAudio()" class="absolute top-4 right-4 text-cyan-400 hover:text-cyan-200 transition">
+                <svg id="soundOnIcon" class="w-7 h-7" fill="currentColor" viewBox="0 0 20 20"><path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414z"/></svg>
+                <svg id="soundOffIcon" class="w-7 h-7 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"/></svg>
+            </button>
+
+            <h1 class="text-3xl md:text-5xl font-black mb-1 blue-gradient-text tracking-wider uppercase">ЧЕРВЯЧКИ И ЖУКИ</h1>
+            <p class="text-xs md:text-sm text-cyan-400 mb-5 font-semibold tracking-widest uppercase">До 1000 соперников • арена растёт вместе с ними</p>
+
+            <!-- Wallet & Stats HUD -->
+            <div class="grid grid-cols-3 gap-2 bg-black/60 p-3 rounded-xl mb-5 border border-cyan-900/60 text-center">
+                <div>
+                    <span class="block text-[10px] text-cyan-500 uppercase">Рекорд</span>
+                    <span id="menuHighScore" class="text-lg font-bold text-cyan-200">0</span>
+                </div>
+                <div>
+                    <span class="block text-[10px] text-cyan-500 uppercase">Жуки</span>
+                    <div class="flex items-center justify-center gap-1 text-lg font-bold text-emerald-400">
+                        🪲 <span id="menuBugs">0</span>
+                    </div>
+                </div>
+                <div>
+                    <span class="block text-[10px] text-cyan-500 uppercase">Телефоны</span>
+                    <div class="flex items-center justify-center gap-1 text-lg font-bold text-blue-400">
+                        📱 <span id="menuPhones">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nickname Input -->
+            <div class="mb-4">
+                <label class="block text-left text-xs text-cyan-400 uppercase mb-1">Имя червячка:</label>
+                <input type="text" id="playerNameInput" maxlength="14" value="Неоновый Червь" oninput="onNameInput()"
+                    class="w-full bg-black/70 border border-cyan-600 rounded-lg py-2 px-4 text-center text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                <div id="tsarHint" class="hidden tsar-text text-[11px] mt-1.5 font-bold">👑 Царский режим: наколки, золотые купола, корона и цепь!</div>
+            </div>
+
+            <!-- AI Difficulty Selection -->
+            <div class="mb-5">
+                <label class="block text-left text-xs text-cyan-400 uppercase mb-2">Сложность ИИ:</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" onclick="setDifficulty('easy')" id="diff-easy" class="diff-btn py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Новичок</button>
+                    <button type="button" onclick="setDifficulty('medium')" id="diff-medium" class="diff-btn py-2 text-xs rounded-lg border border-cyan-400 bg-cyan-950/60 text-cyan-200 font-bold">Опасный</button>
+                    <button type="button" onclick="setDifficulty('hard')" id="diff-hard" class="diff-btn py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Хищник</button>
+                    <button type="button" onclick="setDifficulty('insane')" id="diff-insane" class="diff-btn py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Легенда 💀</button>
+                </div>
+            </div>
+
+            <!-- AI Learning -->
+            <div class="mb-5 bg-black/50 border border-cyan-900/60 rounded-xl p-3 text-left">
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="text-[11px] text-cyan-400 uppercase">🧠 ИИ изучает твой стиль</span>
+                    <span id="aiLearnPct" class="text-xs font-bold text-cyan-200">0%</span>
+                </div>
+                <div class="h-1.5 bg-cyan-950 rounded-full overflow-hidden mb-2">
+                    <div id="aiLearnBar" class="h-full bg-gradient-to-r from-cyan-400 to-blue-500" style="width:0%"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center text-[10px] text-cyan-500">
+                    <div>Агрессия<br><b id="aiAggro" class="text-cyan-200 text-xs">–</b></div>
+                    <div>Ускорение<br><b id="aiBoost" class="text-cyan-200 text-xs">–</b></div>
+                    <div>Осторожность<br><b id="aiCaution" class="text-cyan-200 text-xs">–</b></div>
+                </div>
+                <button type="button" onclick="resetAI()" class="mt-2 text-[10px] text-cyan-600 hover:text-cyan-300 underline">Сбросить обучение</button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col gap-3">
+                <button onclick="startGame('classic')" class="cyan-btn text-black font-black text-xl py-3 rounded-xl uppercase tracking-wider">
+                    Вступить в бой
+                </button>
+                <button onclick="openCustom()" class="glow-pulse bg-gradient-to-r from-fuchsia-700/80 to-indigo-700/80 hover:from-fuchsia-600 hover:to-indigo-600 text-white border border-fuchsia-400/70 font-black py-2.5 rounded-xl text-base transition flex items-center justify-center gap-2 uppercase tracking-wide">
+                    🎲 Как душа скажет
+                </button>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="openShop()" class="bg-blue-950/80 hover:bg-blue-900 text-cyan-300 border border-cyan-600 font-bold py-2.5 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                        🛒 Магазин
+                    </button>
+                    <button onclick="openWardrobe()" class="bg-blue-950/80 hover:bg-blue-900 text-cyan-300 border border-cyan-600 font-bold py-2.5 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                        👗 Гардероб
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div></div>
+
+    <!-- Shop Modal Overlay -->
+    <div id="shopModal" class="absolute inset-0 flex items-center justify-center p-4 z-40 hidden bg-black/85 backdrop-blur-md">
+        <div class="dark-blue-panel p-6 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col border-2 border-cyan-500">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-cyan-800/80">
+                <h2 class="text-2xl font-black blue-gradient-text uppercase">Магазин Раскрасок</h2>
+                <div class="flex items-center gap-3 text-sm font-bold">
+                    <span class="text-emerald-400">🪲 <span id="shopBugs">0</span></span>
+                    <span class="text-blue-400">📱 <span id="shopPhones">0</span></span>
+                </div>
+            </div>
+
+            <div id="skinList" class="scroll-y overflow-y-auto pr-1 grid grid-cols-1 gap-3 my-2 flex-grow"></div>
+
+            <button onclick="closeShop()" class="mt-4 cyan-btn text-black font-bold py-2.5 rounded-xl w-full uppercase">
+                Назад в Меню
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Mode: «Как душа скажет» -->
+    <div id="customModal" class="absolute inset-0 hidden z-40 bg-black/85 backdrop-blur-md overflow-y-auto scroll-y">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="dark-blue-panel p-5 md:p-6 rounded-2xl max-w-lg w-full" style="border-color:#c026d3;">
+                <h2 class="text-2xl md:text-3xl font-black blue-gradient-text uppercase text-center">🎲 Как душа скажет</h2>
+                <p class="text-[11px] text-cyan-500 text-center mb-4 uppercase tracking-widest">Своя арена, свои правила</p>
+
+                <!-- Bots count -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-baseline mb-1">
+                        <label class="text-xs text-cyan-400 uppercase">Количество змеек (соперников)</label>
+                        <span id="customBotsVal" class="text-2xl font-black text-cyan-200">30</span>
+                    </div>
+                    <input id="customBots" type="range" min="0" max="1000" value="493" class="w-full accent-cyan-400" oninput="onCustomSlider(this.value)">
+                    <div class="grid grid-cols-6 gap-1.5 mt-2">
+                        <button type="button" onclick="setCustomBots(1)" class="py-1 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-300">1</button>
+                        <button type="button" onclick="setCustomBots(10)" class="py-1 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-300">10</button>
+                        <button type="button" onclick="setCustomBots(30)" class="py-1 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-300">30</button>
+                        <button type="button" onclick="setCustomBots(100)" class="py-1 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-300">100</button>
+                        <button type="button" onclick="setCustomBots(300)" class="py-1 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-300">300</button>
+                        <button type="button" onclick="setCustomBots(1000)" class="py-1 text-xs rounded-lg border border-fuchsia-600 bg-fuchsia-950/40 text-fuchsia-200 font-bold">1000</button>
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <label class="text-[11px] text-cyan-500">Точное число:</label>
+                        <input id="customBotsNum" type="number" min="1" max="1000" value="30" onchange="onCustomNum(this.value)" class="w-24 bg-black/70 border border-cyan-700 rounded-lg py-1 px-2 text-center text-cyan-100 text-sm">
+                    </div>
+                    <div id="customArenaInfo" class="text-[11px] text-cyan-400 mt-2"></div>
+                    <div id="customWarn" class="text-[11px] text-amber-400 mt-1 min-h-[1.2em]"></div>
+                </div>
+
+                <!-- AI difficulty -->
+                <div class="mb-4">
+                    <label class="block text-xs text-cyan-400 uppercase mb-2">Сложность ИИ</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="setCustomDifficulty('easy')" id="cdiff-easy" class="py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Новичок</button>
+                        <button type="button" onclick="setCustomDifficulty('medium')" id="cdiff-medium" class="py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Опасный</button>
+                        <button type="button" onclick="setCustomDifficulty('hard')" id="cdiff-hard" class="py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Хищник</button>
+                        <button type="button" onclick="setCustomDifficulty('insane')" id="cdiff-insane" class="py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Легенда 💀</button>
+                        <button type="button" onclick="setCustomDifficulty('mixed')" id="cdiff-mixed" class="col-span-2 py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400">Вперемешку</button>
+                    </div>
+                </div>
+
+                <!-- Skin picker -->
+                <div class="mb-4">
+                    <label class="block text-xs text-cyan-400 uppercase mb-2">Твой облик</label>
+                    <canvas id="customPreview" width="440" height="180" class="rounded-lg bg-black/60 border border-cyan-900 block" style="width:100%;max-width:280px;aspect-ratio:22/9;margin:0 auto;"></canvas>
+                    <div id="customSkinName" class="text-center text-sm font-bold text-cyan-200 mt-1 mb-2"></div>
+                    <div class="flex gap-2 mb-2">
+                        <button type="button" id="customTabSkins" onclick="setPickerTab('custom','skins')" class="flex-1 py-2 text-xs rounded-lg border border-cyan-300 bg-cyan-950/70 text-cyan-100 font-bold">🎨 Скины</button>
+                        <button type="button" id="customTabCos" onclick="setPickerTab('custom','cos')" class="flex-1 py-2 text-xs rounded-lg border border-cyan-900 bg-black/40 text-cyan-500">🎩 Косметика</button>
+                    </div>
+                    <div id="customSkinGrid" class="scroll-y grid grid-cols-4 sm:grid-cols-5 gap-2 overflow-y-auto pr-1" style="max-height:200px;"></div>
+                    <p id="customSkinHint" class="text-[11px] text-cyan-400 mt-2 min-h-[2.2em]"></p>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <button onclick="startCustomGame()" class="cyan-btn text-black font-black text-lg py-3 rounded-xl uppercase tracking-wider">Играть</button>
+                    <button onclick="closeCustom()" class="bg-blue-950 hover:bg-blue-900 text-cyan-300 border border-cyan-700 py-2 rounded-xl text-xs uppercase font-bold">Назад в меню</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wardrobe -->
+    <div id="wardrobeModal" class="absolute inset-0 hidden z-40 bg-black/85 backdrop-blur-md overflow-y-auto scroll-y">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="dark-blue-panel p-5 rounded-2xl max-w-lg w-full border-2 border-cyan-500">
+                <div class="flex justify-between items-center mb-3 gap-2">
+                    <h2 class="text-2xl font-black blue-gradient-text uppercase">👗 Гардероб</h2>
+                    <span class="text-[11px] text-cyan-300 text-right">Коллекция: <b id="wardrobeCount">0/0</b></span>
+                </div>
+                <canvas id="wardrobePreview" width="440" height="180" class="rounded-lg bg-black/60 border border-cyan-900 block" style="width:100%;max-width:280px;aspect-ratio:22/9;margin:0 auto;"></canvas>
+                <div id="wardrobeSkinName" class="text-center text-sm font-bold text-cyan-200 mt-1 mb-3"></div>
+                <div class="flex gap-2 mb-2">
+                        <button type="button" id="wardrobeTabSkins" onclick="setPickerTab('wardrobe','skins')" class="flex-1 py-2 text-xs rounded-lg border border-cyan-300 bg-cyan-950/70 text-cyan-100 font-bold">🎨 Скины</button>
+                        <button type="button" id="wardrobeTabCos" onclick="setPickerTab('wardrobe','cos')" class="flex-1 py-2 text-xs rounded-lg border border-cyan-900 bg-black/40 text-cyan-500">🎩 Косметика</button>
+                    </div>
+                    <div id="wardrobeGrid" class="scroll-y grid grid-cols-3 sm:grid-cols-4 gap-2 overflow-y-auto pr-1" style="max-height:260px;"></div>
+                <p id="wardrobeHint" class="text-[11px] text-cyan-400 mt-3 min-h-[2.6em]"></p>
+                <button onclick="closeWardrobe()" class="mt-3 cyan-btn text-black font-bold py-2.5 rounded-xl w-full uppercase">Назад в меню</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-Game Responsive HUD -->
+    <div id="gameHud" class="absolute inset-0 pointer-events-none hidden z-10">
+        <!-- Top Left Score / Currency Stats -->
+        <div class="hud-tl absolute dark-blue-panel p-3 rounded-xl flex items-center gap-3 border border-cyan-600/80 pointer-events-auto">
+            <div>
+                <span class="text-[9px] text-cyan-400 uppercase block">Масса</span>
+                <span id="hudScore" class="text-xl md:text-2xl font-black text-cyan-200">10</span>
+            </div>
+            <div class="h-7 w-px bg-cyan-800"></div>
+            <div>
+                <span class="text-[9px] text-cyan-400 uppercase block">Жуки</span>
+                <span id="hudBugs" class="text-lg md:text-xl font-black text-emerald-400">0</span>
+            </div>
+            <div class="h-7 w-px bg-cyan-800"></div>
+            <div>
+                <span class="text-[9px] text-cyan-400 uppercase block">Телефоны</span>
+                <span id="hudPhones" class="text-lg md:text-xl font-black text-blue-400">0</span>
+            </div>
+        </div>
+
+        <!-- Top Right Leaderboard -->
+        <div class="hud-tr absolute dark-blue-panel p-3 rounded-xl border border-cyan-600/80 pointer-events-auto">
+            <h3 class="text-[11px] font-bold text-cyan-400 uppercase mb-1.5 border-b border-cyan-800 pb-1 text-center">Топ Червячков</h3>
+            <ol id="leaderboardList" class="text-[11px] space-y-1 text-cyan-100"></ol>
+        </div>
+
+        <!-- Уведомления (например, о новом секретном скине) -->
+        <div id="toast" class="absolute inset-x-0 px-6 text-center font-black text-yellow-300 text-sm md:text-base opacity-0 transition-opacity duration-500 pointer-events-none" style="top: calc(5.2rem + env(safe-area-inset-top)); text-shadow:0 0 10px #000, 0 0 18px #b8860b"></div>
+
+        <!-- Rank / Length -->
+        <div id="hudRankPanel" class="hud-bc absolute dark-blue-panel px-4 py-2 rounded-xl border border-cyan-700 text-center text-[11px] text-cyan-200 leading-tight">
+            <div>Ваша длина: <span id="hudLength" class="font-black text-cyan-300">0</span></div>
+            <div>Ваше место: <span id="hudRank" class="font-black text-cyan-300">1</span> из <span id="hudTotal">1</span></div>
+        </div>
+
+        <!-- Подсказка для сенсорного управления -->
+        <div id="touchHint" class="absolute inset-x-0 top-1/3 px-6 text-center text-cyan-100 text-sm opacity-0 transition-opacity duration-700 pointer-events-none" style="text-shadow:0 0 8px #000">
+            ☝️ Веди пальцем по экрану, чтобы управлять<br>Удерживай «Турбо» для ускорения
+        </div>
+
+        <!-- Mobile Acceleration Touch Button (показывается только на сенсорных устройствах) -->
+        <div id="mobileBoostBtn" class="hud-br absolute hidden w-20 h-20 rounded-full cyan-btn items-center justify-center text-black font-black text-[12px] uppercase shadow-2xl pointer-events-auto border-2 border-cyan-200">
+            Турбо
+        </div>
+
+        <!-- Minimap Display -->
+        <div class="hud-bl absolute dark-blue-panel p-1 rounded-xl border border-cyan-700 pointer-events-auto">
+            <canvas id="minimap" width="90" height="90" class="rounded-lg bg-black/80 block"></canvas>
+        </div>
+    </div>
+
+    <!-- Game Over Screen Modal -->
+    <div id="gameOverModal" class="absolute inset-0 flex items-center justify-center p-4 z-40 hidden bg-black/85 backdrop-blur-md">
+        <div class="dark-blue-panel p-6 rounded-2xl max-w-sm w-full text-center border-2 border-cyan-500">
+            <h2 class="text-3xl font-black text-cyan-400 uppercase tracking-wider mb-1">Поражение!</h2>
+            <p id="deathReason" class="text-xs text-cyan-300 mb-4">Вы столкнулись с соперником</p>
+
+            <div class="bg-black/60 p-4 rounded-xl mb-5 space-y-2 border border-cyan-900/60">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-cyan-400">Итоговая Масса:</span>
+                    <span id="goScore" class="font-bold text-cyan-200">0</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-cyan-400">Собрано Жуков:</span>
+                    <span id="goBugsCollected" class="font-bold text-emerald-400">+0 🪲</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-cyan-400">Собрано Телефонов:</span>
+                    <span id="goPhonesCollected" class="font-bold text-blue-400">+0 📱</span>
+                </div>
+            </div>
+
+            <p id="goNewSkins" class="hidden text-sm font-bold text-yellow-300 mb-3"></p>
+            <p id="goAiNote" class="text-[11px] text-cyan-500 mb-4"></p>
+            <div class="flex flex-col gap-2">
+                <button onclick="startGame()" class="cyan-btn text-black font-black py-3 rounded-xl uppercase">
+                    Играть снова
+                </button>
+                <button onclick="returnToMenu()" class="bg-blue-950 hover:bg-blue-900 text-cyan-300 border border-cyan-700 py-2 rounded-xl text-xs uppercase font-bold">
+                    В главное меню
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- AUDIO SYNTHESIZER --- */
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            playEat() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+            playItem(isPhone = false) {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const freqs = isPhone ? [650, 950, 1300] : [520, 780, 1040];
+                freqs.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.1, now + idx * 0.04);
+                    gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.04 + 0.09);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.04);
+                    osc.stop(now + idx * 0.04 + 0.09);
+                });
+            }
+            playDie() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.35);
+                gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.35);
+            }
+            playBuy() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(523, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(1046, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.18);
+            }
+        }
+        const audio = new SoundEngine();
+        SoundEngine.prototype.playUnlock = function () {
+            if (!this.enabled || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            [523, 659, 784, 1046, 1318].forEach((freq, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.12, now + idx * 0.07);
+                gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.07 + 0.18);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now + idx * 0.07);
+                osc.stop(now + idx * 0.07 + 0.18);
+            });
+        };
+
+        function toggleAudio() {
+            audio.enabled = !audio.enabled;
+            document.getElementById('soundOnIcon').classList.toggle('hidden', !audio.enabled);
+            document.getElementById('soundOffIcon').classList.toggle('hidden', audio.enabled);
+        }
+
+        /* --- GAME CONFIGURATION --- */
+        let MAP_DIAMETER = 6700;
+        let WORLD_RADIUS = MAP_DIAMETER / 2;
+        let WORLD_CENTER = WORLD_RADIUS;
+        function setWorldRadius(r) { WORLD_RADIUS = r; WORLD_CENTER = r; MAP_DIAMETER = r * 2; }
+const INITIAL_MASS = 10;
+        const MAX_MASS = 5000;
+        const TARGET_BOT_COUNT = 30;          // всего змей на арене (включая игрока)
+        const MIN_BOOST_MASS = 15;
+        const SPAWN_SHIELD_TIME = 2.0;
+
+        /* --- БАЛАНС (всё в единицах «за секунду», игра идёт с фиксированным шагом 60 Гц) --- */
+        const STEP = 1 / 60;
+        const BASE_SPEED = 216;               // px/сек (было 3.6 px/кадр)
+        const BOOST_SPEED = 345;              // px/сек
+        const FOOD_UNIT = 2.2;                // масса за 1 уровень еды
+        const BOOST_COST_MIN = 4;             // мин. расход массы в сек при ускорении
+        const BOOST_COST_PCT = 0.012;         // + 1.2% массы в сек
+        const BOOST_REFUND = 0.6;             // какая доля потраченной массы выпадает едой
+        const DEATH_DROP_PCT = 0.8;           // какая доля массы выпадает при смерти
+        let MAX_FOODS = 2200;
+        const FOOD_PER_BASE_ARENA = 3300;     // еды на арену обычного размера (было 1100) — густо везде
+        const TOKEN_BUGS = 110;               // было 30
+        const TOKEN_PHONES = 60;              // было 20
+        const MAGNET_RANGE = 55;              // притяжение еды/жуков к голове, как в slither.io
+        let NATURAL_FOOD = 1100;
+        const TURN_BASE = 5.6;                // рад/сек для маленькой змеи
+        const LENGTH_BASE = 90;               // длина змеи при нулевой массе, px
+        const LENGTH_COEF = 14;               // было 16
+        const LENGTH_EXP = 0.68;              // было 0.75 -> длина растёт заметно медленнее
+        const SECRET_SKIN_CHANCE = 0.01;      // шанс 1 к 100, что бот родится с секретным скином
+        const TURN_MIN = 2.6;                 // рад/сек для огромной змеи
+
+        const LOW_FX = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); // телефоны/планшеты: легче эффекты
+
+        /* --- ОБУЧАЕМЫЙ ИИ: профиль игрока хранится между играми --- */
+        const AI_KEY = 'cw_ai_profile';
+        const AI_FULL_LEARN_SECONDS = 900;    // за ~15 минут игры боты «изучают» тебя на 100%
+        function defaultProfile() {
+            return { games: 0, seconds: 0, aggression: 0.3, boostRate: 0.1, caution: 0.3, kills: 0 };
+        }
+        function loadProfile() {
+            try {
+                const p = JSON.parse(localStorage.getItem(AI_KEY) || 'null');
+                return Object.assign(defaultProfile(), p || {});
+            } catch (e) { return defaultProfile(); }
+        }
+        function loadCustom() {
+            const def = { bots: 30, difficulty: 'medium' };
+            try {
+                const c = JSON.parse(localStorage.getItem('cw_custom') || 'null');
+                const m = Object.assign(def, c || {});
+                m.bots = Math.max(1, Math.min(1000, parseInt(m.bots) || 30));
+                if (!['easy', 'medium', 'hard', 'insane', 'mixed'].includes(m.difficulty)) m.difficulty = 'medium';
+                return m;
+            } catch (e) { return def; }
+        }
+        let aiProfile = loadProfile();
+        function saveProfile() {
+            try { localStorage.setItem(AI_KEY, JSON.stringify(aiProfile)); } catch (e) {}
+        }
+        function resetAI() {
+            if (!confirm('Сбросить всё, чему ИИ научился на твоей игре?')) return;
+            aiProfile = defaultProfile();
+            saveProfile();
+            adaptCache.v = null;
+            updateMenuUI();
+        }
+        function aiConfidence() { return Math.min(1, aiProfile.seconds / AI_FULL_LEARN_SECONDS); }
+
+        // Насколько сильно боты используют выученное (зависит от сложности и объёма данных)
+        const adaptCache = { t: -9999, level: '', v: null };
+        function getAdapt(level) {
+            const now = performance.now();
+            if (adaptCache.v && adaptCache.level === level && now - adaptCache.t < 1000) return adaptCache.v;
+            const lv = level === 'insane' ? 1.2 : level === 'hard' ? 1 : level === 'easy' ? 0.35 : 0.7;
+            const S = aiConfidence() * lv;
+            const cutRate = aiProfile.kills / Math.max(1, aiProfile.seconds / 60);   // убийств «телом» в минуту
+            adaptCache.t = now;
+            adaptCache.level = level;
+            adaptCache.v = {
+                S,
+                agg: aiProfile.aggression,
+                boost: aiProfile.boostRate,
+                caution: aiProfile.caution,
+                cut: Math.min(1, cutRate / 2.5) * S
+            };
+            return adaptCache.v;
+        }
+
+        function normAngle(a) {
+            while (a < -Math.PI) a += Math.PI * 2;
+            while (a > Math.PI) a -= Math.PI * 2;
+            return a;
+        }
+
+        // Наблюдаем за игроком ~4 раза в секунду и медленно обновляем профиль
+        let trackTimer = 0, profileSaveTimer = 0;
+        function trackPlayerBehavior(dt) {
+            if (!player || player.isDead) return;
+            aiProfile.seconds += dt;
+            trackTimer += dt;
+            profileSaveTimer += dt;
+            if (profileSaveTimer > 10) { profileSaveTimer = 0; saveProfile(); }
+            if (trackTimer < 0.25) return;
+            trackTimer = 0;
+
+            const a = 0.008;
+            const boosting = isBoosting && player.mass > MIN_BOOST_MASS ? 1 : 0;
+            aiProfile.boostRate += (boosting - aiProfile.boostRate) * a;
+
+            let nearest = null, nd = 450;
+            for (const s of snakes) {
+                if (s === player || s.isDead) continue;
+                const d = Math.hypot(s.x - player.x, s.y - player.y);
+                if (d < nd) { nd = d; nearest = s; }
+            }
+            if (!nearest) return;
+
+            const toward = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+            const diff = Math.abs(normAngle(player.angle - toward));
+            if (nearest.mass > player.mass * 1.15) {
+                // рядом кто-то опаснее: убегает ли игрок?
+                aiProfile.caution += ((diff > 2.0 ? 1 : 0) - aiProfile.caution) * a * 2;
+            } else {
+                // рядом цель попроще: идёт ли игрок на сближение?
+                aiProfile.aggression += ((diff < 0.7 ? 1 : 0) - aiProfile.aggression) * a * 2;
+            }
+        }
+
+        const SKINS = [
+            { id: 'classic_green', name: 'Классический Зеленый', currency: 'bugs', price: 0, color: '#4ADE80' },
+            { id: 'cyan_neon', name: 'Неоновый Синий', currency: 'bugs', price: 20, color: '#00E5FF' },
+            { id: 'purple_plasma', name: 'Плазменный Фиолет', currency: 'bugs', price: 40, color: '#D500F9' },
+            { id: 'cobalt_phone', name: 'Смартфон-Боец', currency: 'phones', price: 10, color: '#2979FF' },
+            { id: 'gold_tsar', name: 'Царский Золотой', currency: 'phones', price: 25, color: '#FFD700' },
+            { id: 'emerald_beetle', name: 'Изумрудный Жук', currency: 'bugs', price: 75, color: '#00E676' },
+            { id: 'ruby_red', name: 'Рубиновый Червь', currency: 'bugs', price: 50, color: '#FF1744' },
+            { id: 'sunset_orange', name: 'Янтарный Закат', currency: 'bugs', price: 60, color: '#FF9100' },
+            { id: 'tiger',      name: 'Тигр',               currency: 'bugs',   price: 55, color: '#FF8F00', style: 'duo', colors: ['#FF8F00', '#1b1b1b'] },
+            { id: 'candy',      name: 'Леденец',            currency: 'bugs',   price: 45, color: '#FF4081', style: 'duo', colors: ['#FF4081', '#FFFFFF'] },
+            { id: 'camo',       name: 'Камуфляж',           currency: 'bugs',   price: 40, color: '#6B8E23', style: 'multi', colors: ['#4B5320', '#6B8E23', '#3B3B2A'] },
+            { id: 'ocean',      name: 'Океанский',          currency: 'bugs',   price: 65, color: '#00B0FF', style: 'gradient', colors: ['#00E5FF', '#2962FF'] },
+            { id: 'sunset_grad',name: 'Закатное Небо',      currency: 'bugs',   price: 70, color: '#FF7043', style: 'gradient', colors: ['#FF5252', '#FFD740'] },
+            { id: 'vampire',    name: 'Вампир',             currency: 'bugs',   price: 80, color: '#B71C1C', style: 'duo', colors: ['#B71C1C', '#1a1a1a'] },
+            { id: 'zebra',      name: 'Зебра',              currency: 'phones', price: 8,  color: '#EEEEEE', style: 'duo', colors: ['#FFFFFF', '#212121'] },
+            { id: 'matrix',     name: 'Матрица',            currency: 'phones', price: 15, color: '#00FF41', style: 'pulse' },
+            { id: 'neon_pink',  name: 'Розовый Неон',       currency: 'phones', price: 12, color: '#FF2DAA', style: 'pulse', glow: true },
+            { id: 'ice',        name: 'Ледяной',            currency: 'phones', price: 18, color: '#4FC3F7', style: 'gradient', colors: ['#E0F7FA', '#4FC3F7'] },
+            { id: 'royal',      name: 'Королевский',        currency: 'phones', price: 30, color: '#8E24AA', style: 'gradient', colors: ['#6A1B9A', '#FFD600'], glow: true }
+        ];
+
+        /* --- СЕКРЕТНЫЕ СКИНЫ: их носят только боты (шанс 1 к 100). Убей такого бота — скин твой --- */
+        const SECRET_SKINS = [
+            { id: 'secret_rainbow', name: 'Радужный Змей',      secret: true, style: 'rainbow', color: '#FF4081', glow: true },
+            { id: 'secret_galaxy',  name: 'Космический Червь',  secret: true, style: 'duo', colors: ['#4B0082', '#E040FB'], color: '#7C4DFF', glow: true },
+            { id: 'secret_lava',    name: 'Лавовый Хищник',     secret: true, style: 'duo', colors: ['#FF3D00', '#FFC400'], color: '#FF6D00', glow: true },
+            { id: 'secret_ghost',   name: 'Призрак Арены',      secret: true, style: 'duo', colors: ['#E0F7FA', '#80DEEA'], color: '#B2EBF2', glow: true },
+            { id: 'secret_acid',    name: 'Кислотный Токсин',   secret: true, style: 'duo', colors: ['#76FF03', '#1B5E20'], color: '#64DD17', glow: true },
+            { id: 'secret_plasma',  name: 'Живая Плазма',       secret: true, style: 'flow', colors: ['#00E5FF', '#D500F9'], color: '#7C4DFF', glow: true },
+            { id: 'secret_gold',    name: 'Золотой Дракон',     secret: true, style: 'pulse', color: '#FFD700', glow: true, glowColor: '#FFEA00' }
+        ];
+        const ALL_SKINS = SKINS.concat(SECRET_SKINS);
+        function findSkin(id) { return ALL_SKINS.find(s => s.id === id) || SKINS[0]; }
+
+        function lerpColor(a, b, k) {
+            const na = parseInt(a.slice(1), 16), nb = parseInt(b.slice(1), 16);
+            const r = Math.round((na >> 16) + ((nb >> 16) - (na >> 16)) * k);
+            const g = Math.round(((na >> 8) & 255) + (((nb >> 8) & 255) - ((na >> 8) & 255)) * k);
+            const bl = Math.round((na & 255) + ((nb & 255) - (na & 255)) * k);
+            return `rgb(${r},${g},${bl})`;
+        }
+
+        // Цвет звена тела по номеру: полоски, градиент вдоль тела, бегущая волна, радуга и т.д.
+        function segmentColor(skin, i, darkColor, total) {
+            switch (skin.style) {
+                case 'rainbow': return `hsl(${(i * 9 + performance.now() * 0.06) % 360}, 90%, 58%)`;
+                case 'gradient': return lerpColor(skin.colors[0], skin.colors[1], total > 1 ? i / (total - 1) : 0);
+                case 'flow': return lerpColor(skin.colors[0], skin.colors[1], (Math.sin(i * 0.32 - performance.now() * 0.004) + 1) / 2);
+                case 'pulse': return shadeColor(skin.color, Math.sin(i * 0.45 - performance.now() * 0.006) * 0.16 - 0.04);
+                case 'multi': return skin.colors[Math.floor(i / 2) % skin.colors.length];
+            }
+            const odd = Math.floor(i / 3) % 2 === 1;
+            if (skin.colors) return skin.colors[odd ? 1 : 0];
+            return odd ? darkColor : skin.color;
+        }
+
+        // CSS-фон для иконок/плиток скина
+        function skinBackground(skin) {
+            if (skin.style === 'rainbow') return 'linear-gradient(135deg,#ff1744,#ff9100,#ffea00,#00e676,#00b0ff,#d500f9)';
+            if (skin.style === 'gradient' || skin.style === 'flow') return `linear-gradient(135deg, ${skin.colors[0]}, ${skin.colors[1]})`;
+            if (skin.style === 'multi') return `linear-gradient(135deg, ${skin.colors[0]} 33%, ${skin.colors[1]} 33% 66%, ${skin.colors[2]} 66%)`;
+            if (skin.colors) return `linear-gradient(135deg, ${skin.colors[0]} 50%, ${skin.colors[1]} 50%)`;
+            return skin.color;
+        }
+
+        const BOT_MALE_NAMES = ["Саня", "Вадим", "Макс", "Артем", "Даня", "Егор", "Илья", "Влад", "Дима", "Рома", "Никита", "Андрей", "Сергей", "Кирилл", "Денис"];
+        const BOT_FEMALE_NAMES = ["Алина", "Катя", "Софа", "Вика", "Лера", "Даша", "Полина", "Аня", "Настя", "Ксюша", "Маша", "Юля", "Кристина", "Оля", "Ира"];
+
+        /* =====================================================================
+           КОСМЕТИКА: надевается на любого червя (и на ботов тоже)
+           ===================================================================== */
+        const COSMETICS = [
+            { id: 'chef',     slot: 'hat',  name: 'Шляпа повара', currency: 'bugs',   price: 35 },
+            { id: 'crown',    slot: 'hat',  name: 'Корона',       currency: 'phones', price: 30 },
+            { id: 'glasses',  slot: 'face', name: 'Крутые очки',  currency: 'bugs',   price: 25 },
+            { id: 'chain',    slot: 'neck', name: 'Золотая цепь', currency: 'phones', price: 20 },
+            { id: 'phonebug', slot: 'pet',  name: 'Телефон-жук',  currency: 'phones', price: 12 }
+        ];
+        const COS_SLOTS = [
+            { slot: 'hat',  label: 'Голова' }, { slot: 'face', label: 'Лицо' },
+            { slot: 'neck', label: 'Шея' },    { slot: 'pet',  label: 'Питомец' }
+        ];
+        const COS_ICONS = { chef: '👨‍🍳', crown: '👑', glasses: '🕶️', chain: '⛓️', phonebug: '📱' };
+        function findCosmetic(id) { return COSMETICS.find(c => c.id === id) || null; }
+
+        function rrect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        function drawCrown(ctx, R, small) {
+            const w = R * (small ? 1.2 : 1.6), h = R * (small ? 0.75 : 1.0);
+            ctx.save();
+            ctx.translate(0, -h * 0.2);
+            const g = ctx.createLinearGradient(0, -h, 0, 0);
+            g.addColorStop(0, '#FFF59D'); g.addColorStop(0.5, '#FFC107'); g.addColorStop(1, '#FF8F00');
+            ctx.beginPath();
+            ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -h * 0.62); ctx.lineTo(-w * 0.25, -h * 0.28);
+            ctx.lineTo(0, -h * 0.95); ctx.lineTo(w * 0.25, -h * 0.28); ctx.lineTo(w / 2, -h * 0.62);
+            ctx.lineTo(w / 2, 0); ctx.closePath();
+            ctx.fillStyle = g; ctx.fill();
+            ctx.lineWidth = Math.max(1.5, R * 0.09); ctx.strokeStyle = '#6d4c00'; ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.fillRect(-w / 2 + 2, -h * 0.2, w - 4, h * 0.1);
+            const jr = Math.max(1.6, R * 0.11);
+            for (const [jx, jy, c] of [[-w / 2, -h * 0.62, '#40C4FF'], [0, -h * 0.95, '#FF1744'], [w / 2, -h * 0.62, '#40C4FF']]) {
+                ctx.beginPath(); ctx.arc(jx, jy, jr, 0, Math.PI * 2);
+                ctx.fillStyle = c; ctx.fill();
+                ctx.lineWidth = 1; ctx.strokeStyle = '#fff'; ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawChef(ctx, R) {
+            const w = R * 1.35, h = R * 1.15;
+            ctx.save();
+            ctx.translate(0, -h * 0.08);
+            const puffs = [[-0.30, -0.62, 0.33], [0, -0.80, 0.39], [0.30, -0.62, 0.33]];
+            ctx.lineWidth = Math.max(3, R * 0.18);
+            ctx.strokeStyle = '#8f98a3';
+            ctx.lineJoin = 'round';
+            for (const [px, py, pr] of puffs) { ctx.beginPath(); ctx.arc(px * w, py * h, pr * w, 0, Math.PI * 2); ctx.stroke(); }
+            rrect(ctx, -w * 0.45, -h * 0.55, w * 0.9, h * 0.55, R * 0.12); ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            for (const [px, py, pr] of puffs) { ctx.beginPath(); ctx.arc(px * w, py * h, pr * w, 0, Math.PI * 2); ctx.fill(); }
+            rrect(ctx, -w * 0.45, -h * 0.55, w * 0.9, h * 0.55, R * 0.12); ctx.fill();
+            ctx.fillStyle = '#e3e8ee';
+            ctx.fillRect(-w * 0.45, -h * 0.14, w * 0.9, h * 0.14);
+            ctx.restore();
+        }
+
+        // Очки: рисуются в «повёрнутой по курсу» системе координат, поверх глаз
+        function drawGlasses(ctx, R) {
+            const ed = R * 0.52, ex = ed * 0.5, lr = R * 0.34 + R * 0.13;
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#0b0b10';
+            ctx.lineWidth = Math.max(2, R * 0.12);
+            ctx.beginPath();
+            ctx.moveTo(ex - lr * 0.3, -ed - lr * 0.85); ctx.lineTo(-R * 0.6, -R * 0.95);
+            ctx.moveTo(ex - lr * 0.3, ed + lr * 0.85); ctx.lineTo(-R * 0.6, R * 0.95);
+            ctx.moveTo(ex + lr * 0.1, -ed + lr * 0.55); ctx.lineTo(ex + lr * 0.1, ed - lr * 0.55);
+            ctx.stroke();
+            for (const sd of [-1, 1]) {
+                ctx.beginPath(); ctx.arc(ex, sd * ed, lr, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(8,12,24,0.84)'; ctx.fill();
+                ctx.lineWidth = Math.max(1.5, R * 0.08); ctx.strokeStyle = '#0b0b10'; ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(ex - lr * 0.1, sd * ed - lr * 0.55); ctx.lineTo(ex + lr * 0.45, sd * ed - lr * 0.05);
+                ctx.lineWidth = Math.max(1, R * 0.07); ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // Золотая цепь на шее с медальоном «$»
+        function drawChain(ctx, R, ang) {
+            const rad = R * 1.0, links = 9;
+            ctx.save();
+            ctx.lineWidth = Math.max(1, R * 0.05);
+            ctx.strokeStyle = '#8a6100';
+            ctx.fillStyle = '#FFC107';
+            for (let k = 0; k < links; k++) {
+                const th = Math.PI * (0.62 + 0.76 * k / (links - 1));
+                const lx = Math.cos(th) * rad, ly = Math.sin(th) * rad;
+                ctx.beginPath(); ctx.ellipse(lx, ly, R * 0.15, R * 0.1, th + Math.PI / 2, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+            }
+            ctx.translate(-rad - R * 0.3, 0);
+            ctx.rotate(-ang);
+            const g = ctx.createRadialGradient(-R * 0.06, -R * 0.06, 1, 0, 0, R * 0.32);
+            g.addColorStop(0, '#FFF59D'); g.addColorStop(1, '#FF8F00');
+            ctx.beginPath(); ctx.arc(0, 0, R * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = g; ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#6d4c00';
+            ctx.font = `bold ${Math.max(8, R * 0.42)}px sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('$', 0, R * 0.02);
+            ctx.restore();
+        }
+
+        // Телефон-жук: смартфон с усиками и лапками, сидит на боку головы
+        function drawPhoneBug(ctx, R, now) {
+            const pw = R * 0.62, ph = R * 1.0;
+            ctx.save();
+            ctx.translate(-R * 0.1, -R * 1.5);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#1b5e20';
+            ctx.lineWidth = Math.max(1.5, R * 0.09);
+            for (let k = -1; k <= 1; k++) {
+                const y = k * ph * 0.27, wig = Math.sin(now * 0.012 + k * 1.7) * R * 0.08;
+                ctx.beginPath();
+                ctx.moveTo(-pw / 2, y); ctx.lineTo(-pw / 2 - R * 0.38, y + k * R * 0.14 + wig);
+                ctx.moveTo(pw / 2, y); ctx.lineTo(pw / 2 + R * 0.38, y + k * R * 0.14 - wig);
+                ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.moveTo(-pw * 0.25, -ph / 2); ctx.lineTo(-pw * 0.6, -ph / 2 - R * 0.4);
+            ctx.moveTo(pw * 0.25, -ph / 2); ctx.lineTo(pw * 0.6, -ph / 2 - R * 0.4);
+            ctx.stroke();
+            ctx.fillStyle = '#76FF03';
+            for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * pw * 0.6, -ph / 2 - R * 0.4, R * 0.07, 0, Math.PI * 2); ctx.fill(); }
+            rrect(ctx, -pw / 2, -ph / 2, pw, ph, R * 0.14);
+            ctx.fillStyle = '#263238'; ctx.fill();
+            ctx.lineWidth = Math.max(1, R * 0.06); ctx.strokeStyle = '#00E5FF'; ctx.stroke();
+            const glow = 0.55 + 0.35 * Math.sin(now * 0.006);
+            rrect(ctx, -pw * 0.38, -ph * 0.38, pw * 0.76, ph * 0.76, R * 0.08);
+            ctx.fillStyle = `rgba(0,229,255,${glow})`; ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * pw * 0.14, -ph * 0.16, R * 0.08, 0, Math.PI * 2); ctx.fill(); }
+            ctx.fillStyle = '#0b0b10';
+            for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * pw * 0.14, -ph * 0.16, R * 0.035, 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
+        }
+
+        function drawCosmetics(ctx, x, y, ang, R, cos, isLeader, now) {
+            if (!cos) cos = {};
+            if (cos.neck || cos.face || cos.pet) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(ang);
+                if (cos.neck === 'chain') drawChain(ctx, R, ang);
+                if (cos.pet === 'phonebug') drawPhoneBug(ctx, R, now);
+                if (cos.face === 'glasses') drawGlasses(ctx, R);
+                ctx.restore();
+            }
+            const hat = cos.hat || (isLeader ? 'leader' : null);
+            if (hat) {
+                ctx.save();
+                ctx.translate(x, y - R * 0.92);
+                if (hat === 'crown') drawCrown(ctx, R, false);
+                else if (hat === 'chef') drawChef(ctx, R);
+                else drawCrown(ctx, R, true);               // корона лидера таблицы — поменьше
+                ctx.restore();
+            }
+        }
+
+        /* =====================================================================
+           «ЦАРЬ»: назови червя «царь» — получишь блатного червя с наколками и золотыми куполами
+           ===================================================================== */
+        const TSAR_SKIN = { id: 'tsar', name: 'Царь', tattoo: 'tsar', style: 'duo', colors: ['#E2B887', '#C9976B'], color: '#D9A877', glow: true, glowColor: '#FFD54F' };
+        const TSAR_COSMETICS = { hat: 'crown', face: 'glasses', neck: 'chain', pet: null };
+        function isTsarName(n) { return (n || '').trim().toLowerCase() === 'царь'; }
+        function currentPlayerName() {
+            const el = document.getElementById('playerNameInput');
+            return el && el.value ? el.value.trim() : '';
+        }
+        function playerLook() {
+            if (isTsarName(currentPlayerName())) return { skin: TSAR_SKIN, cos: Object.assign({}, TSAR_COSMETICS), tsar: true };
+            return { skin: findSkin(state.equippedSkin), cos: Object.assign({}, state.cosEq), tsar: false };
+        }
+
+        function drawDome(ctx, x, y, s) {
+            const w = s * 0.62, h = s * 0.95;
+            ctx.save();
+            ctx.translate(x, y);
+            const g = ctx.createLinearGradient(-w, -h, w, h * 0.4);
+            g.addColorStop(0, '#FFF59D'); g.addColorStop(0.5, '#FFC107'); g.addColorStop(1, '#E65100');
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.45, h * 0.35);
+            ctx.bezierCurveTo(-w * 1.05, h * 0.1, -w * 0.5, -h * 0.35, 0, -h * 0.7);
+            ctx.bezierCurveTo(w * 0.5, -h * 0.35, w * 1.05, h * 0.1, w * 0.45, h * 0.35);
+            ctx.closePath();
+            ctx.fillStyle = g; ctx.fill();
+            ctx.lineWidth = Math.max(1, s * 0.06); ctx.strokeStyle = '#6d4c00'; ctx.stroke();
+            ctx.fillStyle = '#FFB300';
+            ctx.fillRect(-w * 0.45, h * 0.35, w * 0.9, h * 0.16);
+            ctx.strokeRect(-w * 0.45, h * 0.35, w * 0.9, h * 0.16);
+            ctx.beginPath();
+            ctx.moveTo(0, -h * 0.7); ctx.lineTo(0, -h * 1.12);
+            ctx.moveTo(-w * 0.2, -h * 0.95); ctx.lineTo(w * 0.2, -h * 0.95);
+            ctx.lineWidth = Math.max(1.2, s * 0.08); ctx.strokeStyle = '#FFD54F'; ctx.stroke();
+            ctx.restore();
+        }
+        function drawStarTattoo(ctx, x, y, r) {
+            ctx.beginPath();
+            for (let k = 0; k < 10; k++) {
+                const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 === 0 ? r : r * 0.42;
+                const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+                if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(30,70,200,0.85)'; ctx.fill();
+        }
+        function drawCrossTattoo(ctx, x, y, r) {
+            ctx.beginPath();
+            ctx.moveTo(x, y - r); ctx.lineTo(x, y + r);
+            ctx.moveTo(x - r * 0.6, y - r * 0.3); ctx.lineTo(x + r * 0.6, y - r * 0.3);
+            ctx.lineWidth = Math.max(1.5, r * 0.28); ctx.strokeStyle = 'rgba(30,70,200,0.85)'; ctx.stroke();
+        }
+        // Наколки и золотые купола по всей длине тела
+        function drawTsarBody(ctx, segs, R) {
+            const n = segs.length;
+            ctx.save();
+            ctx.lineCap = 'round';
+            for (let i = 3; i < n - 2; i++) {
+                const m = i % 20, s = segs[i];
+                if (s.x < view.l - 60 || s.x > view.r + 60 || s.y < view.t - 60 || s.y > view.b + 60) continue;
+                const sc = R * (1 - (i / n) * 0.35);
+                if (m === 4) drawDome(ctx, s.x, s.y, sc);
+                else if (m === 10) drawStarTattoo(ctx, s.x, s.y, sc * 0.5);
+                else if (m === 15) drawCrossTattoo(ctx, s.x, s.y, sc * 0.55);
+                else if (i % 40 === 28 && sc > 11) {
+                    ctx.fillStyle = 'rgba(30,70,200,0.9)';
+                    ctx.font = `italic bold ${sc * 0.55}px sans-serif`;
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText('ЦАРЬ', s.x, s.y);
+                }
+            }
+            ctx.restore();
+        }
+
+        /* =====================================================================
+           ИМЕНА БОТОВ — шуточные тюремные «погоняла»-оскорбления (самые жёсткие и недопустимые не использую).
+           Список легко править: просто добавь/убери слова.
+           ===================================================================== */
+        const PRISON_NICKS = [
+            'Шнырь', 'Шестёрка', 'Фуфломёт', 'Фраерок', 'Крыса', 'Стукач', 'Дятел', 'Сявка', 'Баклан', 'Чушпан',
+            'Чепушило', 'Чмошник', 'Лошара', 'Терпила', 'Хмырь', 'Гнида', 'Шкура', 'Падла', 'Шушера', 'Приблуда',
+            'Фуфлыжник', 'Чмо', 'Позорник', 'Мразота', 'Черпак', 'Доходяга', 'Дрищ', 'Нахлебник', 'Халявщик', 'Мелюзга',
+            'Сопля', 'Слабак', 'Трусло', 'Жмот', 'Крысёныш', 'Балабол', 'Лопух', 'Недотёпа', 'Пугало', 'Подпевала',
+            'Первоход', 'Малолетка', 'Шакал', 'Хлюпик', 'Бздун', 'Прихвостень', 'Паршивец', 'Огрызок', 'Тюфяк', 'Задохлик'
+        ];
+        function makeBotName() {
+            const first = Math.random() < 0.55
+                ? BOT_MALE_NAMES[Math.floor(Math.random() * BOT_MALE_NAMES.length)]
+                : BOT_FEMALE_NAMES[Math.floor(Math.random() * BOT_FEMALE_NAMES.length)];
+            const nick = PRISON_NICKS[Math.floor(Math.random() * PRISON_NICKS.length)];
+            const r = Math.random();
+            if (r < 0.5) return `${nick} ${first}`;
+            if (r < 0.8) return `${first} ${nick}`;
+            return `${nick}${Math.random() < 0.5 ? '' : ' №' + (1 + Math.floor(Math.random() * 99))}`;
+        }
+
+        function randomBotCosmetics() {
+            const c = { hat: null, face: null, neck: null, pet: null };
+            if (Math.random() < 0.16) c.hat = Math.random() < 0.3 ? 'crown' : 'chef';
+            if (Math.random() < 0.14) c.face = 'glasses';
+            if (Math.random() < 0.10) c.neck = 'chain';
+            if (Math.random() < 0.08) c.pet = 'phonebug';
+            return c;
+        }
+
+
+        let state = {
+            bugs: parseInt(localStorage.getItem('cw_bugs') || '0'),
+            phones: parseInt(localStorage.getItem('cw_phones') || '0'),
+            highScore: parseInt(localStorage.getItem('cw_highscore') || '0'),
+            equippedSkin: localStorage.getItem('cw_skin') || 'classic_green',
+            unlockedSkins: JSON.parse(localStorage.getItem('cw_unlocked') || '["classic_green"]'),
+            difficulty: 'medium',
+            mode: 'classic',
+            custom: loadCustom(),
+            cosOwned: (() => { try { return JSON.parse(localStorage.getItem('cw_cos_owned') || '[]'); } catch (e) { return []; } })(),
+            cosEq: (() => { try { return Object.assign({ hat: null, face: null, neck: null, pet: null }, JSON.parse(localStorage.getItem('cw_cos_eq') || 'null') || {}); } catch (e) { return { hat: null, face: null, neck: null, pet: null }; } })(),
+            activeDifficulty: 'medium',
+            targetBots: 29,
+            runNewSkins: [],
+            isPlaying: false,
+            runBugsCollected: 0,
+            runPhonesCollected: 0
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimap');
+        const minimapCtx = minimapCanvas.getContext('2d');
+
+        let camera = { x: WORLD_CENTER, y: WORLD_CENTER, zoom: 1 };
+        let mousePos = { x: 0, y: 0 };
+        let isBoosting = false;
+
+        let isTouchDevice = false;
+        let joystickActive = false;
+        const joystickContainer = document.getElementById('joystickContainer');
+        const joystickKnob = document.getElementById('joystickKnob');
+
+        const mobileBoostBtn = document.getElementById('mobileBoostBtn');
+        const touchHint = document.getElementById('touchHint');
+
+        /* --- Размеры канваса: учитываем плотность пикселей (чёткая картинка на телефонах) --- */
+        let viewW = window.innerWidth, viewH = window.innerHeight, dpr = 1, viewScale = 1;
+        const view = { l: -Infinity, t: -Infinity, r: Infinity, b: Infinity };
+
+        function resizeCanvas() {
+            dpr = Math.min(window.devicePixelRatio || 1, 2);
+            viewW = window.innerWidth;
+            viewH = window.innerHeight;
+            canvas.width = Math.round(viewW * dpr);
+            canvas.height = Math.round(viewH * dpr);
+            // На маленьких экранах отдаляем камеру, чтобы видеть столько же арены, сколько на ноутбуке
+            viewScale = Math.max(0.62, Math.min(1, Math.min(viewW, viewH) / 720));
+        }
+        window.addEventListener('resize', () => { resizeCanvas(); if (menuBgOn) menuResize(); });
+        window.addEventListener('orientationchange', () => setTimeout(() => { resizeCanvas(); if (menuBgOn) menuResize(); }, 150));
+        resizeCanvas();
+
+        document.addEventListener('visibilitychange', () => {
+            lastTime = performance.now();
+            accumulator = 0;
+            if (document.hidden) { isBoosting = false; saveProfile(); }
+        });
+        window.addEventListener('beforeunload', saveProfile);
+        window.addEventListener('contextmenu', (e) => { if (state.isPlaying) e.preventDefault(); });
+
+        /* --- Мышь и клавиатура --- */
+        window.addEventListener('mousemove', (e) => {
+            if (!isTouchDevice) {
+                mousePos.x = e.clientX - viewW / 2;
+                mousePos.y = e.clientY - viewH / 2;
+            }
+        });
+        window.addEventListener('mousedown', (e) => {
+            if (!isTouchDevice && e.button === 0 && state.isPlaying) isBoosting = true;
+        });
+        window.addEventListener('mouseup', () => { if (!isTouchDevice) isBoosting = false; });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && state.isPlaying) { isBoosting = true; e.preventDefault(); }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') isBoosting = false;
+        });
+
+        /* --- Сенсорное управление: плавающий джойстик (появляется там, где коснулся) + кнопка «Турбо» --- */
+        let joyId = null, boostId = null, joyCenter = { x: 0, y: 0 };
+
+        function setTouchMode(on) {
+            isTouchDevice = on;
+            mobileBoostBtn.classList.toggle('hidden', !on);
+            if (!on) {
+                joystickContainer.style.display = 'none';
+                joyId = null; boostId = null;
+            }
+        }
+        setTouchMode(!!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches));
+
+        // Если на гибридном устройстве взяли мышь — возвращаем управление мышью
+        window.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && isTouchDevice) setTouchMode(false); });
+        window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && isTouchDevice) setTouchMode(false); });
+
+        function startJoystick(touch) {
+            const half = 60;
+            const cx = Math.max(half + 6, Math.min(viewW - half - 6, touch.clientX));
+            const cy = Math.max(half + 6, Math.min(viewH - half - 6, touch.clientY));
+            joyCenter.x = cx; joyCenter.y = cy;
+            joystickContainer.style.left = (cx - half) + 'px';
+            joystickContainer.style.top = (cy - half) + 'px';
+            joystickContainer.style.display = 'block';
+            joystickKnob.style.transform = 'translate(0px, 0px)';
+            updateJoystick(touch);
+        }
+
+        function updateJoystick(touch) {
+            let dx = touch.clientX - joyCenter.x;
+            let dy = touch.clientY - joyCenter.y;
+            const dist = Math.hypot(dx, dy);
+            const maxRadius = 50;
+            if (dist > maxRadius) { dx = (dx / dist) * maxRadius; dy = (dy / dist) * maxRadius; }
+            joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            // Маленькое «мёртвое» отклонение не меняет курс — змея не дёргается от дрожания пальца
+            if (Math.hypot(dx, dy) > 6) { mousePos.x = dx; mousePos.y = dy; }
+        }
+
+        function releaseTouches() {
+            joyId = null; boostId = null;
+            joystickContainer.style.display = 'none';
+            mobileBoostBtn.classList.remove('pressed');
+            isBoosting = false;
+        }
+
+        window.addEventListener('touchstart', (e) => {
+            if (!isTouchDevice) setTouchMode(true);
+            if (!state.isPlaying) return;
+            for (const t of e.changedTouches) {
+                const onBoost = t.target && t.target.closest && t.target.closest('#mobileBoostBtn');
+                if (onBoost) {
+                    boostId = t.identifier;
+                    isBoosting = true;
+                    mobileBoostBtn.classList.add('pressed');
+                } else if (joyId === null) {
+                    joyId = t.identifier;
+                    startJoystick(t);
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!state.isPlaying) return;
+            for (const t of e.changedTouches) {
+                if (t.identifier === joyId) updateJoystick(t);
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        function onTouchEnd(e) {
+            for (const t of e.changedTouches) {
+                if (t.identifier === joyId) {
+                    joyId = null;
+                    joystickContainer.style.display = 'none';   // курс сохраняется, змея продолжает ползти
+                }
+                if (t.identifier === boostId) {
+                    boostId = null;
+                    isBoosting = false;
+                    mobileBoostBtn.classList.remove('pressed');
+                }
+            }
+        }
+        window.addEventListener('touchend', onTouchEnd);
+        window.addEventListener('touchcancel', onTouchEnd);
+
+        let player = null;
+        let snakes = [];
+        let foods = [];
+        let bugTokens = [];
+        let phoneTokens = [];
+        let botSpawnTimer = 0;
+
+        /* --- SNAKE CLASS (Fixed Path-Sampling Tail Growth & Absolute Visual Smoothing) --- */
+class Snake {
+            constructor(id, name, x, y, skin, isBot = false, aiLevel = 'medium') {
+                this.id = id;
+                this.name = name;
+                this.x = x;
+                this.y = y;
+                this.angle = Math.random() * Math.PI * 2;
+                this.targetAngle = this.angle;
+
+                this.mass = INITIAL_MASS;
+                this.isBot = isBot;
+                this.aiLevel = aiLevel;
+                this.skin = skin;
+                this.isDead = false;
+                this.isBotBoosting = false;
+                this.spawnShield = SPAWN_SHIELD_TIME;
+                this.boostAcc = 0;
+                this.boostGlow = 0;
+                this.aiTimer = 0;
+                this.huntTarget = null;
+                this.bbox = { minX: x, maxX: x, minY: y, maxY: y };
+
+                // Тело — цепочка точек фиксированной длины шага (follow-the-leader).
+                // Длина зависит только от массы и не зависит от частоты кадров.
+                this.segments = [];
+                const sp = this.spacing;
+                const n = this.targetSegments;
+                for (let i = 0; i < n; i++) {
+                    this.segments.push({
+                        x: x - Math.cos(this.angle) * sp * i,
+                        y: y - Math.sin(this.angle) * sp * i,
+                        o: this, i: i
+                    });
+                }
+                this.mind = isBot ? makeMind(this) : null;
+                this.isLeader = false;
+                this.cosmetics = { hat: null, face: null, neck: null, pet: null };
+            }
+
+            // Поставить змею в точку и вытянуть тело ровной линией позади головы
+            placeAt(x, y, angle) {
+                this.x = x; this.y = y;
+                this.angle = angle; this.targetAngle = angle;
+                const sp = this.spacing, n = this.targetSegments;
+                this.segments = [];
+                for (let i = 0; i < n; i++) {
+                    this.segments.push({ x: x - Math.cos(angle) * sp * i, y: y - Math.sin(angle) * sp * i, o: this, i: i });
+                }
+                this.moveBody();
+            }
+
+            get radius() {
+                // Кэшируем: радиус запрашивается сотни тысяч раз за шаг (еда × змеи), пересчёт нужен только при смене массы
+                if (this._rm !== this.mass) {
+                    this._rm = this.mass;
+                    this._r = Math.min(48, 12 + Math.sqrt(this.mass) * 0.42);
+                }
+                return this._r;
+            }
+
+            // Расстояние между соседними точками: плавно растёт с толщиной
+            get spacing() {
+                return this.radius * 0.7;
+            }
+
+            // Длина змеи в пикселях ~ mass^LENGTH_EXP (рост замедляется, но никогда не «упирается в потолок»)
+            get targetLengthPx() {
+                return LENGTH_BASE + Math.pow(this.mass, LENGTH_EXP) * LENGTH_COEF;
+            }
+
+            get targetSegments() {
+                return Math.max(6, Math.round(this.targetLengthPx / this.spacing));
+            }
+
+            // Текущая скорость поворота: чем больше змея, тем она неповоротливее
+            get turnRate() {
+                const t = Math.min(1, Math.sqrt(Math.max(0, this.mass - INITIAL_MASS) / (MAX_MASS * 0.4)));
+                return TURN_BASE - (TURN_BASE - TURN_MIN) * t;
+            }
+
+            // Масса -> еда: возвращает {value, count}. Крупные куски для крупных змей.
+            update(dt) {
+                if (this.isDead) return;
+
+                if (this.spawnShield > 0) this.spawnShield -= dt;
+
+                let speed = BASE_SPEED;
+                const wantBoost = (this === player) ? isBoosting : this.isBotBoosting;
+                if (wantBoost && this.mass > MIN_BOOST_MASS) {
+                    speed = BOOST_SPEED;
+                    this.boostGlow = 6;
+                    const cost = Math.max(BOOST_COST_MIN, this.mass * BOOST_COST_PCT) * dt;
+                    this.mass = Math.max(MIN_BOOST_MASS, this.mass - cost);
+                    // Часть потраченной массы выпадает едой ровно по стоимости (масса не берётся из воздуха)
+                    this.boostAcc += cost * BOOST_REFUND;
+                    while (this.boostAcc >= FOOD_UNIT && foods.length < MAX_FOODS) {
+                        const tail = this.segments[this.segments.length - 1];
+                        foods.push(new Food(tail.x + (Math.random() - 0.5) * 10, tail.y + (Math.random() - 0.5) * 10, 1));
+                        this.boostAcc -= FOOD_UNIT;
+                    }
+                } else {
+                    this.boostAcc = 0;
+                    if (this.boostGlow > 0) this.boostGlow--;
+                }
+
+                // Поворот зависит от dt и размера
+                let angleDiff = this.targetAngle - this.angle;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                const maxTurn = this.turnRate * dt * (speed > BASE_SPEED ? 0.85 : 1);
+                this.angle += Math.max(-maxTurn, Math.min(maxTurn, angleDiff));
+
+                this.x += Math.cos(this.angle) * speed * dt;
+                this.y += Math.sin(this.angle) * speed * dt;
+                this.mass = Math.min(MAX_MASS, this.mass);
+
+                this.moveBody();
+            }
+
+            moveBody() {
+                const sp = this.spacing;
+                const segs = this.segments;
+                let px = this.x, py = this.y;
+                segs[0].x = px;
+                segs[0].y = py;
+                let minX = px, maxX = px, minY = py, maxY = py;
+
+                // Каждая точка подтягивается к предыдущей на ровно sp пикселей (заодно считаем габариты тела)
+                for (let i = 1; i < segs.length; i++) {
+                    const cur = segs[i];
+                    const dx = cur.x - px, dy = cur.y - py;
+                    const d2 = dx * dx + dy * dy;
+                    let nx, ny;
+                    if (d2 < 1e-8) { nx = px - sp; ny = py; }
+                    else { const k = sp / Math.sqrt(d2); nx = px + dx * k; ny = py + dy * k; }
+                    cur.x = nx; cur.y = ny;
+                    if (nx < minX) minX = nx; else if (nx > maxX) maxX = nx;
+                    if (ny < minY) minY = ny; else if (ny > maxY) maxY = ny;
+                    px = nx; py = ny;
+                }
+
+                // Плавно растим/укорачиваем хвост до нужного числа сегментов
+                const target = this.targetSegments;
+                if (segs.length < target) {
+                    const add = Math.min(2, target - segs.length);
+                    for (let k = 0; k < add; k++) {
+                        const last = segs[segs.length - 1];
+                        const before = segs[segs.length - 2] || last;
+                        const dx = last.x - before.x, dy = last.y - before.y;
+                        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const nx = last.x + (dx / d) * sp, ny = last.y + (dy / d) * sp;
+                        segs.push({ x: nx, y: ny, o: this, i: segs.length });
+                        if (nx < minX) minX = nx; else if (nx > maxX) maxX = nx;
+                        if (ny < minY) minY = ny; else if (ny > maxY) maxY = ny;
+                    }
+                } else if (segs.length > target) {
+                    segs.length = Math.max(target, segs.length - 2);
+                }
+
+                this.bbox.minX = minX; this.bbox.maxX = maxX;
+                this.bbox.minY = minY; this.bbox.maxY = maxY;
+            }
+
+            getSegments() {
+                return this.segments;
+            }
+
+            updateSmartAI() { botThink(this); }
+
+            draw(ctx) {
+                if (this.isDead) return;
+
+                const segments = this.getSegments();
+                if (segments.length < 2) return;
+
+                const headRadius = this.radius;
+
+                ctx.save();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                const glowing = this.boostGlow > 0 || this.skin.glow;
+                if (glowing) {
+                    if (LOW_FX) {
+                        ctx.beginPath();
+                        ctx.moveTo(segments[0].x, segments[0].y);
+                        for (let i = 1; i < segments.length; i++) ctx.lineTo(segments[i].x, segments[i].y);
+                        ctx.lineWidth = (headRadius * 2) + 18;
+                        ctx.strokeStyle = (this.skin.glowColor || this.skin.color) + '44';
+                        ctx.stroke();
+                    } else {
+                        ctx.shadowColor = this.skin.glowColor || this.skin.color;
+                        ctx.shadowBlur = 22;
+                    }
+                }
+
+                // Outer Shadow Outline Tube
+                ctx.beginPath();
+                ctx.moveTo(segments[0].x, segments[0].y);
+                for (let i = 1; i < segments.length; i++) {
+                    ctx.lineTo(segments[i].x, segments[i].y);
+                }
+                ctx.lineWidth = (headRadius * 2) + 5;
+                ctx.strokeStyle = '#020408';
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                const darkColor = shadeColor(this.skin.color, -0.28);
+
+                // Main Monotonic Solid Tube with Smooth Tapering towards the Tail
+                for (let i = 0; i < segments.length - 1; i++) {
+                    const p1 = segments[i];
+                    const p2 = segments[i + 1];
+                    const cpad = headRadius * 2;
+                    if ((p1.x < view.l - cpad && p2.x < view.l - cpad) || (p1.x > view.r + cpad && p2.x > view.r + cpad) ||
+                        (p1.y < view.t - cpad && p2.y < view.t - cpad) || (p1.y > view.b + cpad && p2.y > view.b + cpad)) continue;
+                    const t1 = 1 - (i / segments.length) * 0.35;
+                    const t2 = 1 - ((i + 1) / segments.length) * 0.35;
+                    const r1 = headRadius * t1;
+                    const r2 = headRadius * t2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.lineWidth = (r1 + r2);
+                    ctx.strokeStyle = segmentColor(this.skin, i, darkColor, segments.length);
+                    ctx.stroke();
+                }
+
+                // Spine Highlight for 3D Volume
+                ctx.beginPath();
+                ctx.moveTo(segments[0].x, segments[0].y);
+                for (let i = 1; i < segments.length; i++) {
+                    ctx.lineTo(segments[i].x, segments[i].y);
+                }
+                ctx.lineWidth = headRadius * 0.32;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+                ctx.stroke();
+
+                // Наколки и золотые купола у «Царя»
+                if (this.skin.tattoo === 'tsar') drawTsarBody(ctx, segments, headRadius);
+
+                ctx.restore();
+
+                /* --- Expressive Cartoon Eyes --- */
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                const eyeDist = headRadius * 0.52;
+                const eyeRadius = headRadius * 0.34;
+                const pupilRadius = eyeRadius * 0.45;
+
+                ctx.beginPath();
+                ctx.arc(eyeDist * 0.5, -eyeDist, eyeRadius + 1.5, 0, Math.PI * 2);
+                ctx.moveTo(eyeDist * 0.5 + eyeRadius + 1.5, eyeDist);
+                ctx.arc(eyeDist * 0.5, eyeDist, eyeRadius + 1.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#0a0e17';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(eyeDist * 0.5, -eyeDist, eyeRadius, 0, Math.PI * 2);
+                ctx.arc(eyeDist * 0.5, eyeDist, eyeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(eyeDist * 0.5 + pupilRadius * 0.4, -eyeDist, pupilRadius, 0, Math.PI * 2);
+                ctx.arc(eyeDist * 0.5 + pupilRadius * 0.4, eyeDist, pupilRadius, 0, Math.PI * 2);
+                ctx.fillStyle = '#0f172a';
+                ctx.fill();
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(eyeDist * 0.5 + pupilRadius * 0.25, -eyeDist - 1.2, pupilRadius * 0.4, 0, Math.PI * 2);
+                ctx.arc(eyeDist * 0.5 + pupilRadius * 0.25, eyeDist - 1.2, pupilRadius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                // Косметика: очки, цепь, телефон-жук, шляпы (и корона лидера таблицы)
+                drawCosmetics(ctx, this.x, this.y, this.angle, headRadius, this.cosmetics, this.isLeader, performance.now());
+
+                if (this.spawnShield > 0) {
+                    ctx.save();
+                    ctx.strokeStyle = '#FFD700';
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, headRadius + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                ctx.save();
+                ctx.font = 'bold 12px "Russo One", sans-serif';
+                ctx.fillStyle = this === player ? '#00E5FF' : (this.skin.secret ? '#FFD700' : '#E0F7FA');
+                ctx.textAlign = 'center';
+                ctx.shadowColor = '#000000';
+                ctx.shadowBlur = 4;
+                const hatRoom = (this.cosmetics && this.cosmetics.hat) || this.isLeader ? headRadius * 1.05 : 0;
+                ctx.fillText((this.skin.secret && this !== player ? '✨ ' : '') + this.name, this.x, this.y - headRadius - 14 - hatRoom);
+                ctx.restore();
+            }
+        }
+
+        function shadeColor(hex, amt) {
+            const n = parseInt(hex.slice(1), 16);
+            const f = (v) => Math.max(0, Math.min(255, Math.round(v + 255 * amt)));
+            const r = f(n >> 16), g = f((n >> 8) & 255), b = f(n & 255);
+            return `rgb(${r},${g},${b})`;
+        }
+
+        /* --- FOOD CLASS (Tiers 1 to 6) --- */
+        class Food {
+            // Мелкой еды больше, крупной меньше (средняя ценность ~2.1 вместо 3.5)
+            static randomTier() {
+                const r = Math.random();
+                if (r < 0.45) return 1;
+                if (r < 0.72) return 2;
+                if (r < 0.88) return 3;
+                if (r < 0.95) return 4;
+                if (r < 0.985) return 5;
+                return 6;
+            }
+            constructor(x, y, value = null) {
+                this.x = x;
+                this.y = y;
+                this.value = value !== null ? value : Food.randomTier();
+                this.radius = 2.5 + this.value * 1.9;
+                
+                const palette = ['#00E5FF', '#00FF66', '#FFAB00', '#D500F9', '#FF1744', '#00E676'];
+                this.color = palette[this.value - 1];
+            }
+
+            static sprite(value, color) {
+                if (!Food.sprites) Food.sprites = {};
+                if (Food.sprites[value]) return Food.sprites[value];
+                const size = 64, c = document.createElement('canvas');
+                c.width = c.height = size;
+                const g = c.getContext('2d');
+                const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.22, color);
+                grad.addColorStop(0.45, color + 'aa');
+                grad.addColorStop(1, color + '00');
+                g.fillStyle = grad;
+                g.fillRect(0, 0, size, size);
+                Food.sprites[value] = c;
+                return c;
+            }
+
+            draw(ctx) {
+                if (this.phase === undefined) this.phase = Math.random() * 6.28;
+                const pulse = 1 + 0.14 * Math.sin(performance.now() * 0.004 + this.phase);
+                const s = this.radius * 2.9 * pulse;
+                ctx.drawImage(Food.sprite(this.value, this.color), this.x - s / 2, this.y - s / 2, s, s);
+            }
+        }
+
+        class ItemToken {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.radius = 16;
+                this.pulse = Math.random() * Math.PI;
+            }
+
+            draw(ctx) {
+                this.pulse += 0.05;
+                const floatY = this.y + Math.sin(this.pulse) * 4;
+
+                ctx.save();
+                ctx.translate(this.x, floatY);
+                ctx.font = '22px serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.type === 'bug' ? '🪲' : '📱', 0, 0);
+                ctx.restore();
+            }
+        }
+
+        /* --- WORLD RENDERING (Honeycomb Pattern Background) --- */
+        let hexPattern = null;
+        function buildHexPattern(ctx) {
+            // Плитка 140x80 с идеальными сотами; рисуется один раз, дальше заливка паттерном — дёшево даже на телефоне
+            const tile = document.createElement('canvas');
+            tile.width = 140; tile.height = 80;
+            const g = tile.getContext('2d');
+            g.strokeStyle = 'rgba(255, 255, 255, 0.045)';
+            g.lineWidth = 1.2;
+            const Rx = 140 / 3, halfH = 40;
+            const centers = [[0, 0], [140, 0], [0, 80], [140, 80], [70, 40], [70, -40], [70, 120]];
+            for (const [cx, cy] of centers) {
+                g.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const a = (i * Math.PI) / 3;
+                    const hx = cx + Rx * Math.cos(a);
+                    const hy = cy + halfH * Math.sin(a) / Math.sin(Math.PI / 3);
+                    if (i === 0) g.moveTo(hx, hy); else g.lineTo(hx, hy);
+                }
+                g.closePath();
+                g.stroke();
+            }
+            return ctx.createPattern(tile, 'repeat');
+        }
+
+        function drawWorldBackground(ctx, vl, vt, vr, vb) {
+            // Заливаем только видимую область, а не всю карту
+            ctx.fillStyle = '#020408';
+            ctx.fillRect(vl, vt, vr - vl, vb - vt);
+
+            ctx.fillStyle = '#0b0f19';
+            ctx.beginPath();
+            ctx.arc(WORLD_CENTER, WORLD_CENTER, WORLD_RADIUS, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (!hexPattern) hexPattern = buildHexPattern(ctx);
+            if (hexPattern) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(WORLD_CENTER, WORLD_CENTER, WORLD_RADIUS, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.fillStyle = hexPattern;
+                ctx.fillRect(vl, vt, vr - vl, vb - vt);
+                ctx.restore();
+            }
+        }
+
+        function drawWorldBoundary(ctx) {
+            ctx.strokeStyle = '#00E5FF';
+            ctx.lineWidth = 12;
+            if (!LOW_FX) {
+                ctx.shadowColor = '#0088FF';
+                ctx.shadowBlur = 20;
+            }
+            ctx.beginPath();
+            ctx.arc(WORLD_CENTER, WORLD_CENTER, WORLD_RADIUS, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        function spawnRandomInCircle(padding = 300) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.sqrt(Math.random()) * (WORLD_RADIUS - padding);   // равномерно по площади
+            return {
+                x: WORLD_CENTER + Math.cos(angle) * r,
+                y: WORLD_CENTER + Math.sin(angle) * r
+            };
+        }
+
+        /* --- БЕЗОПАСНЫЕ МЕСТА ПОЯВЛЕНИЯ + ПРОСТРАНСТВЕННЫЕ СЕТКИ --- */
+        // Сетки нужны, чтобы 1000 змей не сверяли каждую с каждой: проверяем только соседние клетки.
+        const SEG_CELL = 120;      // звенья тел: столкновения, уворот, поиск места для появления
+        const HEAD_CELL = 500;     // головы: «кто рядом?»
+        const FOOD_CELL = 250;     // еда
+        const SEG_INV = 1 / SEG_CELL;
+        let segDim = 8, segHead = new Int32Array(64), segNext = new Int32Array(4096), segRef = [], segCount = 0;
+        let headDim = 8, headHead = new Int32Array(64), headNext = new Int32Array(1024), headRef = [], headCount = 0;
+        let fgDim = 8, fgCells = [], fgSum = new Float32Array(64);
+
+        function initGrids() {
+            const span = WORLD_RADIUS * 2 + 600;
+            segDim = Math.ceil(span / SEG_CELL) + 2;
+            segHead = new Int32Array(segDim * segDim).fill(-1);
+            headDim = Math.ceil(span / HEAD_CELL) + 2;
+            headHead = new Int32Array(headDim * headDim).fill(-1);
+            fgDim = Math.ceil(span / FOOD_CELL) + 2;
+            fgCells = new Array(fgDim * fgDim);
+            fgSum = new Float32Array(fgDim * fgDim);
+            segCount = 0;
+            headCount = 0;
+        }
+
+        function cellOf(v, cell, dim) {
+            const c = Math.floor((v + 300) / cell);
+            return c < 0 ? 0 : (c >= dim ? dim - 1 : c);
+        }
+
+        function insertSeg(seg) {
+            if (segCount >= segNext.length) {
+                const bigger = new Int32Array(segNext.length * 2);
+                bigger.set(segNext);
+                segNext = bigger;
+            }
+            let cx = ((seg.x + 300) * SEG_INV) | 0, cy = ((seg.y + 300) * SEG_INV) | 0;
+            if (cx < 0) cx = 0; else if (cx >= segDim) cx = segDim - 1;
+            if (cy < 0) cy = 0; else if (cy >= segDim) cy = segDim - 1;
+            const c = cy * segDim + cx;
+            segRef[segCount] = seg;
+            segNext[segCount] = segHead[c];
+            segHead[c] = segCount++;
+        }
+        function insertSnakeSegs(s) {
+            const segs = s.segments;
+            for (let i = 0; i < segs.length; i += 2) insertSeg(segs[i]);   // каждое 2-е звено: зазор между точками меньше зоны удара
+        }
+        function buildSegGrid() {
+            segHead.fill(-1);
+            segCount = 0;
+            for (const s of snakes) if (!s.isDead) insertSnakeSegs(s);
+        }
+
+        function buildHeadGrid() {
+            headHead.fill(-1);
+            headCount = 0;
+            for (const s of snakes) {
+                if (s.isDead) continue;
+                if (headCount >= headNext.length) {
+                    const b = new Int32Array(headNext.length * 2);
+                    b.set(headNext);
+                    headNext = b;
+                }
+                const c = cellOf(s.y, HEAD_CELL, headDim) * headDim + cellOf(s.x, HEAD_CELL, headDim);
+                headRef[headCount] = s;
+                headNext[headCount] = headHead[c];
+                headHead[c] = headCount++;
+            }
+        }
+        function queryHeads(x, y, r, out) {
+            out.length = 0;
+            const x0 = cellOf(x - r, HEAD_CELL, headDim), x1 = cellOf(x + r, HEAD_CELL, headDim);
+            const y0 = cellOf(y - r, HEAD_CELL, headDim), y1 = cellOf(y + r, HEAD_CELL, headDim);
+            const r2 = r * r;
+            for (let cy = y0; cy <= y1; cy++) {
+                for (let cx = x0; cx <= x1; cx++) {
+                    for (let i = headHead[cy * headDim + cx]; i !== -1; i = headNext[i]) {
+                        const s = headRef[i];
+                        const dx = s.x - x, dy = s.y - y;
+                        if (dx * dx + dy * dy <= r2) out.push(s);
+                    }
+                }
+            }
+            return out;
+        }
+
+        function rebuildFoodGrid() {
+            fgSum.fill(0);
+            for (let i = 0; i < fgCells.length; i++) {
+                const a = fgCells[i];
+                if (a !== undefined) a.length = 0;
+            }
+            const inv = 1 / FOOD_CELL, maxC = fgDim - 1;
+            for (let k = 0; k < foods.length; k++) {
+                const f = foods[k];
+                if (f.dead) continue;
+                let cx = ((f.x + 300) * inv) | 0, cy = ((f.y + 300) * inv) | 0;
+                if (cx < 0) cx = 0; else if (cx > maxC) cx = maxC;
+                if (cy < 0) cy = 0; else if (cy > maxC) cy = maxC;
+                const idx = cy * fgDim + cx;
+                let a = fgCells[idx];
+                if (a === undefined) { a = []; fgCells[idx] = a; }
+                a.push(f);
+                fgSum[idx] += f.value;
+            }
+        }
+
+        // Опасная точка? Возвращает владельца ближайшего опасного звена или null.
+        // Голова более слабой змеи опасной не считается: в лобовой выигрываем мы.
+        function hazardAt(px, py, self, margin) {
+            const sr = self.radius * 0.9 + margin;
+            const q = sr + 36;
+            const x0 = cellOf(px - q, SEG_CELL, segDim), x1 = cellOf(px + q, SEG_CELL, segDim);
+            const y0 = cellOf(py - q, SEG_CELL, segDim), y1 = cellOf(py + q, SEG_CELL, segDim);
+            for (let cy = y0; cy <= y1; cy++) {
+                for (let cx = x0; cx <= x1; cx++) {
+                    for (let i = segHead[cy * segDim + cx]; i !== -1; i = segNext[i]) {
+                        const seg = segRef[i];
+                        const o = seg.o;
+                        if (o === self || o.isDead || o.spawnShield > 0) continue;
+                        if (seg.i === 0 && o.mass < self.mass * 0.97) continue;
+                        const lim = sr + o.radius * 0.75;
+                        const dx = seg.x - px, dy = seg.y - py;
+                        if (dx * dx + dy * dy < lim * lim) return o;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Расстояние от точки до ближайшего участка тела змеи (с учётом толщины) — для тестов
+        function distToSnakeBody(px, py, s) {
+            let best = Infinity;
+            const segs = s.segments;
+            for (let i = 0; i < segs.length; i += 3) {
+                const dx = px - segs[i].x, dy = py - segs[i].y;
+                const d = dx * dx + dy * dy;
+                if (d < best) best = d;
+            }
+            return Math.sqrt(best) - s.radius;
+        }
+
+        // Насколько свободна точка: расстояние до ближайшего тела (от игрока требуем больше)
+        function spawnClearance(px, py, minDist, playerMinDist) {
+            const q = Math.max(minDist, playerMinDist) + 60;
+            const x0 = cellOf(px - q, SEG_CELL, segDim), x1 = cellOf(px + q, SEG_CELL, segDim);
+            const y0 = cellOf(py - q, SEG_CELL, segDim), y1 = cellOf(py + q, SEG_CELL, segDim);
+            let best = Infinity;
+            for (let cy = y0; cy <= y1; cy++) {
+                for (let cx = x0; cx <= x1; cx++) {
+                    for (let i = segHead[cy * segDim + cx]; i !== -1; i = segNext[i]) {
+                        const seg = segRef[i];
+                        const o = seg.o;
+                        if (o.isDead) continue;
+                        const dx = seg.x - px, dy = seg.y - py;
+                        let d = Math.sqrt(dx * dx + dy * dy) - o.radius;
+                        if (o === player) d -= (playerMinDist - minDist);
+                        if (d < best) best = d;
+                    }
+                }
+            }
+            return best;
+        }
+
+        // Ищет точку, свободную от всех змей минимум на minDist (от игрока — на playerMinDist).
+        // Если идеальной нет, берёт самую свободную из найденных.
+        function findSafeSpawn(minDist, playerMinDist) {
+            let best = null, bestScore = -Infinity;
+            for (let attempt = 0; attempt < 60; attempt++) {
+                const pos = spawnRandomInCircle(Math.min(600, WORLD_RADIUS * 0.2));
+                const score = spawnClearance(pos.x, pos.y, minDist, playerMinDist);
+                if (score > bestScore) { bestScore = score; best = pos; }
+                if (score >= minDist) break;
+            }
+            return best;
+        }
+
+        function angleToCenter(x, y) {
+            return Math.atan2(WORLD_CENTER - y, WORLD_CENTER - x) + (Math.random() - 0.5) * 1.2;
+        }
+
+        let spawnGap = 900, spawnPlayerGap = 1400;
+
+        /* =====================================================================
+           МОЗГ БОТОВ. У каждого бота свой архетип, набор черт, причуда и настроение —
+           поэтому они не повторяют друг друга и играют по-разному.
+           ===================================================================== */
+        const LEVELS = {
+            easy:   { tick: [14, 26], vision: 0.70, skill: 0.25, boost: 0.25, look: 0.75, noise: 0.45, tactics: false, trait: 0.60,
+                      mix: { farmer: 1.6, scavenger: 1.3, assassin: 0.3, cutter: 0.4, tyrant: 0.5, encircler: 0.4 } },
+            medium: { tick: [8, 14],  vision: 0.90, skill: 0.55, boost: 0.65, look: 0.90, noise: 0.15, tactics: true,  trait: 0.85, mix: {} },
+            hard:   { tick: [4, 7],   vision: 1.10, skill: 0.85, boost: 1.00, look: 1.00, noise: 0.04, tactics: true,  trait: 1.00,
+                      mix: { farmer: 0.8, assassin: 1.3, cutter: 1.2 } },
+            insane: { tick: [2, 4],   vision: 1.35, skill: 1.00, boost: 1.25, look: 1.35, noise: 0.00, tactics: true,  trait: 1.15,
+                      mix: { farmer: 0.4, scavenger: 0.6, parasite: 0.5, assassin: 2.0, tyrant: 1.6, cutter: 1.5, hunter: 1.3, encircler: 1.3 } }
+        };
+
+        const ARCHETYPES = {
+            hunter:    { label: 'Охотник',     w: 18, aggr: .85, caut: .35, greed: .50, boost: .70, cut: .55, ring: .25, scav: .2, farm: .2, amb: .6 },
+            cutter:    { label: 'Подрезатель', w: 14, aggr: .80, caut: .45, greed: .45, boost: .90, cut: 1.0, ring: .15, scav: .3, farm: .2, amb: .6 },
+            encircler: { label: 'Удав',        w: 10, aggr: .75, caut: .50, greed: .55, boost: .50, cut: .40, ring: 1.0, scav: .3, farm: .3, amb: .6 },
+            scavenger: { label: 'Падальщик',   w: 16, aggr: .35, caut: .55, greed: .90, boost: .65, cut: .30, ring: .10, scav: 1.0, farm: .5, amb: .5 },
+            farmer:    { label: 'Фермер',      w: 20, aggr: .25, caut: .80, greed: 1.0, boost: .20, cut: .20, ring: .10, scav: .5, farm: 1.0, amb: .45 },
+            tyrant:    { label: 'Тиран',       w: 8,  aggr: 1.0, caut: .25, greed: .60, boost: .80, cut: .80, ring: .70, scav: .5, farm: .3, amb: 1.0 },
+            assassin:  { label: 'Убийца',      w: 8,  aggr: .90, caut: .40, greed: .40, boost: .85, cut: .90, ring: .30, scav: .2, farm: .2, amb: .7 },
+            parasite:  { label: 'Шакал',       w: 6,  aggr: .40, caut: .60, greed: .70, boost: .60, cut: .40, ring: .10, scav: .8, farm: .3, amb: .5 }
+        };
+        const QUIRKS = ['', '', '', 'berserker', 'paranoid', 'greedy', 'stalker', 'sprinter'];
+
+        function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+        function angDiff(a, b) {
+            let d = b - a;
+            while (d > Math.PI) d -= Math.PI * 2;
+            while (d < -Math.PI) d += Math.PI * 2;
+            return d;
+        }
+        function blendAngle(a, b, t) { return a + angDiff(a, b) * t; }
+
+        function makeMind(bot) {
+            const lv = LEVELS[bot.aiLevel] || LEVELS.medium;
+            const wOf = (k) => ARCHETYPES[k].w * ((lv.mix && lv.mix[k]) || 1);
+            let total = 0;
+            for (const k in ARCHETYPES) total += wOf(k);
+            let r = Math.random() * total, arch = 'hunter';
+            for (const k in ARCHETYPES) { r -= wOf(k); if (r <= 0) { arch = k; break; } }
+            const b = ARCHETYPES[arch];
+            const j = () => (Math.random() + Math.random() - 1) * 0.32;     // у каждого бота свои отклонения -> «уникальный разум»
+            const T = {
+                aggr: clamp01(b.aggr + j()), caut: clamp01(b.caut + j()), greed: clamp01(b.greed + j()),
+                boost: clamp01(b.boost + j()), cut: clamp01(b.cut + j()), ring: clamp01(b.ring + j()),
+                scav: clamp01(b.scav + j()), farm: clamp01(b.farm + j()), amb: clamp01(b.amb + j()),
+                vision: 0.85 + Math.random() * 0.35, persist: 8 + Math.floor(Math.random() * 18)
+            };
+            const quirk = QUIRKS[Math.floor(Math.random() * QUIRKS.length)];
+            if (quirk === 'berserker') { T.aggr = clamp01(T.aggr + 0.25); T.caut = clamp01(T.caut - 0.3); }
+            else if (quirk === 'paranoid') { T.caut = clamp01(T.caut + 0.3); T.aggr = clamp01(T.aggr - 0.2); T.vision += 0.15; }
+            else if (quirk === 'greedy') { T.greed = clamp01(T.greed + 0.25); T.caut = clamp01(T.caut - 0.1); }
+            else if (quirk === 'stalker') { T.persist += 14; T.aggr = clamp01(T.aggr + 0.1); }
+            else if (quirk === 'sprinter') { T.boost = clamp01(T.boost + 0.3); }
+            T.aggr = clamp01(T.aggr * lv.trait);
+            T.boost = clamp01(T.boost * lv.trait);
+            T.cut = clamp01(T.cut * lv.trait);
+            T.ring = clamp01(T.ring * lv.trait);
+            return {
+                arch, quirk, T, heat: 0, fear: 0, tgt: null, commit: 0, goal: 'wander',
+                ringSide: Math.random() < 0.5 ? -1 : 1, roamX: 0, roamY: 0, roamUntil: 0, evolved: false
+            };
+        }
+
+        const _near = [], _threats = [], _thx = [], _thy = [], _thr = [], _fg = { x: 0, y: 0, sum: 0, d: 0 };
+        let leaderMass = 100, leaderSnake = null, aiLod = 1, simTick = 0;
+        const killStats = {};
+
+        // Время перехвата: когда бот, летящий со скоростью s, встретит цель, движущуюся по вектору (vx, vy)
+        function interceptTime(dx, dy, vx, vy, s) {
+            const a = vx * vx + vy * vy - s * s;
+            const b = 2 * (dx * vx + dy * vy);
+            const c = dx * dx + dy * dy;
+            if (Math.abs(a) < 1e-6) return b !== 0 ? Math.max(-1, -c / b) : -1;
+            const disc = b * b - 4 * a * c;
+            if (disc < 0) return -1;
+            const sq = Math.sqrt(disc);
+            const t1 = (-b - sq) / (2 * a), t2 = (-b + sq) / (2 * a);
+            const t = Math.min(t1 > 0 ? t1 : Infinity, t2 > 0 ? t2 : Infinity);
+            return t === Infinity ? -1 : t;
+        }
+
+        // План охоты: перехват, подрезание, кольцо или лобовой таран — зависит от черт бота
+        function huntPlan(bot, o, mind, T, lv, ad) {
+            const dx = o.x - bot.x, dy = o.y - bot.y;
+            const d = Math.sqrt(dx * dx + dy * dy) || 1;
+            const adv = bot.mass / o.mass;                           // >1: мы крупнее
+            const oBoost = (o === player ? isBoosting : o.isBotBoosting) && o.mass > MIN_BOOST_MASS;
+            const oSpeed = oBoost ? BOOST_SPEED : BASE_SPEED;
+            const vx = Math.cos(o.angle) * oSpeed, vy = Math.sin(o.angle) * oSpeed;
+            const boostPow = T.boost * lv.boost;
+            const mySpeed = BASE_SPEED * (boostPow > 0.4 ? 1.3 : 1);
+
+            // точка перехвата: чуть впереди головы жертвы
+            let tx = o.x, ty = o.y;
+            if (lv.tactics) {
+                const t = interceptTime(dx, dy, vx, vy, mySpeed);
+                if (t > 0 && t < 3) {
+                    const ahead = adv >= 1 ? o.radius * 0.5 : o.radius * 1.6;
+                    tx = o.x + vx * t + Math.cos(o.angle) * ahead;
+                    ty = o.y + vy * t + Math.sin(o.angle) * ahead;
+                }
+            } else {
+                tx = o.x + vx * 0.25;
+                ty = o.y + vy * 0.25;
+            }
+            let ang = Math.atan2(ty - bot.y, tx - bot.x);
+
+            if (!lv.tactics) return { ang, boost: false, tactic: 'chase' };
+
+            // КОЛЬЦО: крупная змея обвивает слабую и замыкает круг
+            const ringR = Math.max(110, Math.min(210, bot.targetLengthPx / 7.5));
+            if (T.ring * lv.skill > 0.45 && adv > 1.5 && d < 560 && bot.targetLengthPx > ringR * 5.2) {
+                const k = Math.max(-0.45, Math.min(0.85, (d - ringR) / (ringR * 1.4)));
+                ang = Math.atan2(dy, dx) + mind.ringSide * (Math.PI / 2 - k);
+                return { ang, boost: d > ringR * 1.8 && boostPow > 0.5, tactic: 'ring' };
+            }
+
+            // ПОДРЕЗАНИЕ: выскочить перед головой жертвы и перечеркнуть её курс телом
+            if (T.cut * lv.skill > 0.3 && d < 460) {
+                const cosH = Math.cos(o.angle), sinH = Math.sin(o.angle);
+                const along = (bot.x - o.x) * cosH + (bot.y - o.y) * sinH;           // >0: мы впереди головы жертвы
+                const lateral = (bot.y - o.y) * cosH - (bot.x - o.x) * sinH;          // сторона, с которой мы
+                const sideSign = lateral >= 0 ? 1 : -1;
+                // пересекаем курс, только если успеваем: боковое смещение меньше расстояния до головы жертвы
+                if (along > o.radius * 2 && along < 340 && Math.abs(lateral) < along * 0.85) {
+                    ang = o.angle - sideSign * (Math.PI / 2);
+                    return { ang, boost: boostPow > 0.3, tactic: 'cut' };
+                }
+                return { ang, boost: boostPow > 0.35 && d < 400, tactic: 'intercept' };
+            }
+
+            // ТАРАН: крупный выигрывает лобовую
+            return { ang, boost: adv > 1.25 && boostPow > 0.45 && d < 300, tactic: 'chase' };
+        }
+
+        // Куда за едой: выбираем самую «жирную» и близкую клетку, обходим клетки с крупными соперниками
+        function forage(bot, T, V, out) {
+            const range = Math.min(V * 0.9, 720);
+            const nc = Math.ceil(range / FOOD_CELL);
+            const bx = cellOf(bot.x, FOOD_CELL, fgDim), by = cellOf(bot.y, FOOD_CELL, fgDim);
+            let best = -1, bestS = 0, bestD = 0;
+            const aversion = 0.25 + T.caut * 0.75;
+            for (let cy = by - nc; cy <= by + nc; cy++) {
+                if (cy < 0 || cy >= fgDim) continue;
+                for (let cx = bx - nc; cx <= bx + nc; cx++) {
+                    if (cx < 0 || cx >= fgDim) continue;
+                    const idx = cy * fgDim + cx;
+                    const sum = fgSum[idx];
+                    if (sum <= 0) continue;
+                    const ccx = cx * FOOD_CELL - 300 + FOOD_CELL / 2, ccy = cy * FOOD_CELL - 300 + FOOD_CELL / 2;
+                    const dx = ccx - bot.x, dy = ccy - bot.y;
+                    const d = Math.sqrt(dx * dx + dy * dy);
+                    if (d > range) continue;
+                    let s = sum / (d + 110 + (1 - T.greed) * 140);
+                    for (let n = 0; n < _near.length; n++) {
+                        const o = _near[n];
+                        if (o === bot || o.mass < bot.mass * 0.9) continue;
+                        const ox = o.x - ccx, oy = o.y - ccy;
+                        if (ox * ox + oy * oy < 90000) { s *= (1 - aversion * 0.8); break; }
+                    }
+                    if (s > bestS) { bestS = s; best = idx; bestD = d; }
+                }
+            }
+            if (best < 0) return false;
+            const arr = fgCells[best];
+            let sx = 0, sy = 0, sw = 0;
+            for (let i = 0; i < arr.length; i++) { const f = arr[i]; sx += f.x * f.value; sy += f.y * f.value; sw += f.value; }
+            if (sw <= 0) return false;
+            out.x = sx / sw; out.y = sy / sw; out.sum = fgSum[best]; out.d = bestD;
+            return true;
+        }
+
+        // Безопасность курса: идём вдоль луча и проверяем стены, чужие тела и предсказанные головы опасных
+        function pathRisk(bot, ang, len, nThr) {
+            const c = Math.cos(ang), s = Math.sin(ang);
+            const margin = 14 + bot.radius * 0.5;
+            const wallR = WORLD_RADIUS - bot.radius * 1.6 - 30;
+            const wallR2 = wallR * wallR;
+            for (let k = 1; k <= 4; k++) {
+                const d = len * k / 4;
+                const px = bot.x + c * d, py = bot.y + s * d;
+                const wx = px - WORLD_CENTER, wy = py - WORLD_CENTER;
+                if (wx * wx + wy * wy > wallR2) return (k - 1) / 4;
+                if (hazardAt(px, py, bot, margin) !== null) return (k - 1) / 4;
+                for (let t = 0; t < nThr; t++) {
+                    const ddx = px - _thx[t], ddy = py - _thy[t];
+                    const lim = bot.radius * 0.9 + _thr[t] + 25;
+                    if (ddx * ddx + ddy * ddy < lim * lim) return (k - 1) / 4;
+                }
+            }
+            return 1;
+        }
+
+        const _offs = [0, 0.3, -0.3, 0.6, -0.6, 0.95, -0.95, 1.35, -1.35, 1.9, -1.9, 2.6, -2.6];
+        function steer(bot, want, lv) {
+            const len = Math.max(95, Math.min(300, (BASE_SPEED * 0.55 + bot.radius * 2.4) * lv.look));
+            let nThr = 0;
+            for (let i = 0; i < _threats.length && i < 8; i++) {
+                const t = _threats[i];
+                _thx[nThr] = t.x + Math.cos(t.angle) * BASE_SPEED * 0.4;
+                _thy[nThr] = t.y + Math.sin(t.angle) * BASE_SPEED * 0.4;
+                _thr[nThr] = t.radius;
+                nThr++;
+            }
+            const pref = angDiff(bot.angle, want) >= 0 ? 1 : -1;
+            let bestAng = want, bestScore = -9;
+            for (let k = 0; k < _offs.length; k++) {
+                const off = _offs[k] * pref;
+                const ang = want + off;
+                const risk = pathRisk(bot, ang, len, nThr);
+                if (risk >= 1) return { angle: ang, risk: 1 };
+                const score = risk - Math.abs(off) * 0.04;
+                if (score > bestScore) { bestScore = score; bestAng = ang; }
+            }
+            return { angle: bestAng, risk: Math.max(0, bestScore) };
+        }
+
+        function pickRoam(bot, mind) {
+            let tx, ty;
+            if (mind.arch === 'assassin' && player && !player.isDead) {
+                tx = player.x + (Math.random() - 0.5) * 500; ty = player.y + (Math.random() - 0.5) * 500;          // убийцы идут за игроком
+            } else if (mind.arch === 'tyrant' && leaderSnake && leaderSnake !== bot && !leaderSnake.isDead) {
+                tx = leaderSnake.x + (Math.random() - 0.5) * 600; ty = leaderSnake.y + (Math.random() - 0.5) * 600; // тираны — за лидером
+            } else {
+                const p = spawnRandomInCircle(WORLD_RADIUS * 0.12);
+                tx = p.x; ty = p.y;
+            }
+            mind.roamX = tx; mind.roamY = ty;
+            mind.roamUntil = simTick + 240 + Math.random() * 400;
+        }
+
+        function botThink(bot) {
+            const mind = bot.mind;
+            if (!mind) return;
+            if (--bot.aiTimer > 0) return;
+            const lv = LEVELS[bot.aiLevel] || LEVELS.medium;
+            const T = mind.T;
+            let lod = aiLod;
+            if (player && !player.isDead && Math.hypot(bot.x - player.x, bot.y - player.y) > 3200) lod *= 1.7;
+            bot.aiTimer = Math.max(1, Math.round((lv.tick[0] + Math.random() * (lv.tick[1] - lv.tick[0])) * lod));
+            const ad = getAdapt(bot.aiLevel);
+
+            // настроение остывает, роли взрослеют
+            mind.heat *= 0.96;
+            mind.fear *= 0.94;
+            if (!mind.evolved && bot.mass > 650 && (mind.arch === 'farmer' || mind.arch === 'scavenger' || mind.arch === 'parasite')) {
+                mind.evolved = true;
+                mind.arch = 'tyrant';
+                T.aggr = clamp01(T.aggr + 0.4); T.caut = clamp01(T.caut - 0.25); T.amb = 1;
+            }
+            const aggr = clamp01(T.aggr + mind.heat * 0.3 - mind.fear * 0.25);
+            const caut = clamp01(T.caut + mind.fear * 0.3 - mind.heat * 0.12 + (bot === leaderSnake ? 0.12 : 0));
+            const V = Math.max(380, Math.min(1100, (420 + bot.radius * 7) * T.vision * lv.vision));
+            const boostPow = T.boost * lv.boost;
+
+            // ---- ОЩУЩЕНИЯ ----
+            queryHeads(bot.x, bot.y, V, _near);
+            _threats.length = 0;
+            let threat = null, thScore = 0;
+            let prey = null, prScore = 0;
+            let host = null, hostMass = 0;
+            const curTgt = (mind.commit > 0 && mind.tgt && !mind.tgt.isDead) ? mind.tgt : null;
+            for (let n = 0; n < _near.length; n++) {
+                const o = _near[n];
+                if (o === bot || o.spawnShield > 0) continue;
+                const dx = o.x - bot.x, dy = o.y - bot.y;
+                const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                const rel = o.mass / bot.mass;
+                if (rel > 1.1) {
+                    const lim = (170 + bot.radius * 3 + o.radius * 3) * (1 + caut * 0.9 + (o === player ? ad.boost * ad.S * 0.4 : 0));
+                    if (d < lim) {
+                        const facing = Math.cos(angDiff(o.angle, Math.atan2(-dy, -dx)));
+                        const urgency = (1 - d / lim) * (0.55 + 0.45 * Math.max(0, facing)) * Math.min(2, rel);
+                        _threats.push(o);
+                        if (urgency > thScore) { thScore = urgency; threat = o; }
+                    }
+                    if (mind.arch === 'parasite' && rel > 1.5 && o.mass > hostMass) { host = o; hostMass = o.mass; }
+                }
+                // умный маленький бот может подрезать и крупного
+                const canCut = lv.tactics && T.cut * lv.skill > 0.55 && rel >= 0.82 && rel <= 3.5 && d < 460;
+                if (rel < 0.82 || canCut) {
+                    let w = aggr * (0.4 + T.amb * 0.6);
+                    if (mind.arch === 'assassin' && o === player) w *= 2.6 + ad.S * 0.8;
+                    if (mind.arch === 'tyrant' && o.mass > leaderMass * 0.45) w *= 1.5;
+                    if (o === player) w *= 1 + ad.S * (1 - ad.agg) * 0.6;       // выучено: пассивный игрок — лёгкая добыча
+                    if (rel >= 0.82) w *= 0.55;
+                    let sc = w * (Math.min(o.mass, bot.mass * 1.2) + 25) / (d + 140);
+                    if (o === curTgt) sc *= 1.6;                                // упорство: не метаться между целями
+                    if (sc > prScore) { prScore = sc; prey = o; }
+                }
+            }
+            // игрок, который любит подрезать, всегда считается источником опасности впереди
+            if (player && !player.isDead && ad.cut > 0.15 && player.mass > bot.mass * 0.6 && _threats.indexOf(player) === -1 &&
+                Math.hypot(player.x - bot.x, player.y - bot.y) < V) {
+                _threats.push(player);
+            }
+            if (prScore < 0.03) prey = null;
+            if (prey) {
+                if (prey !== mind.tgt) { mind.tgt = prey; mind.commit = T.persist; }
+            }
+            if (mind.commit > 0) mind.commit--;
+
+            // ---- РЕШЕНИЕ ----
+            let want = bot.angle, boost = false, goal = 'wander';
+            if (threat && thScore > 0.16 + caut * 0.05) {
+                // БЕГСТВО: уходим вбок от курса головы, а не по прямой
+                const dx = threat.x - bot.x, dy = threat.y - bot.y;
+                const facing = Math.cos(angDiff(threat.angle, Math.atan2(-dy, -dx)));
+                if (facing > 0.2) {
+                    const lateral = (bot.y - threat.y) * Math.cos(threat.angle) - (bot.x - threat.x) * Math.sin(threat.angle);
+                    want = threat.angle + (lateral >= 0 ? 1 : -1) * 1.2;
+                } else {
+                    want = Math.atan2(-dy, -dx);
+                }
+                boost = thScore > 0.4 && bot.mass > 35 && boostPow > 0.3;
+                mind.fear = Math.min(1, mind.fear + 0.07);
+                goal = 'flee';
+            } else if (prey) {
+                const plan = huntPlan(bot, prey, mind, T, lv, ad);
+                want = plan.ang;
+                boost = plan.boost && bot.mass > 45;
+                goal = plan.tactic;
+            } else if (host && mind.arch === 'parasite') {
+                // ШАКАЛ: держится рядом с крупным и ждёт, когда тот погибнет
+                const back = 230 + host.radius * 2, side = mind.ringSide;
+                const tx = host.x - Math.cos(host.angle) * back - Math.sin(host.angle) * side * 150;
+                const ty = host.y - Math.sin(host.angle) * back + Math.cos(host.angle) * side * 150;
+                const dd = Math.hypot(tx - bot.x, ty - bot.y);
+                want = dd > 70 ? Math.atan2(ty - bot.y, tx - bot.x) : host.angle;
+                boost = dd > 380 && boostPow > 0.5 && bot.mass > 60;
+                goal = 'follow';
+            } else if (forage(bot, T, V, _fg)) {
+                want = Math.atan2(_fg.y - bot.y, _fg.x - bot.x);
+                // крупные россыпи (останки змей) — повод ускориться, пока не растащили
+                boost = _fg.sum >= 24 && _fg.d < 520 && T.scav * boostPow > 0.35 && bot.mass > 50;
+                goal = 'forage';
+            } else {
+                if (simTick > mind.roamUntil || Math.hypot(bot.x - mind.roamX, bot.y - mind.roamY) < 160) pickRoam(bot, mind);
+                want = Math.atan2(mind.roamY - bot.y, mind.roamX - bot.x);
+                goal = 'roam';
+            }
+
+            // ---- СТЕНА ----
+            const edge = WORLD_RADIUS - Math.hypot(bot.x - WORLD_CENTER, bot.y - WORLD_CENTER);
+            const wallZone = 420 + bot.radius * 3;
+            if (edge < wallZone) {
+                const toC = Math.atan2(WORLD_CENTER - bot.y, WORLD_CENTER - bot.x);
+                const w = clamp01(1 - (edge - bot.radius * 2) / wallZone);
+                want = blendAngle(want, toC, Math.min(1, w * 1.25));
+                if (edge < 220) boost = false;
+            }
+
+            // ---- БЕЗОПАСНЫЙ КУРС ----
+            const res = steer(bot, want, lv);
+            bot.targetAngle = res.angle + (lv.noise ? (Math.random() - 0.5) * lv.noise : 0);
+            bot.isBotBoosting = boost && bot.mass > Math.max(MIN_BOOST_MASS + 12, 28) && res.risk > 0.55;
+            mind.goal = goal;
+        }
+
+        function pickBotSkin() {
+            const playerSkinId = player ? player.skin.id : null;
+            // 1 к 100: бот родится в секретном скине (сначала те, которых у тебя ещё нет)
+            if (Math.random() < SECRET_SKIN_CHANCE) {
+                const notOwned = SECRET_SKINS.filter(s => !state.unlockedSkins.includes(s.id) && s.id !== playerSkinId);
+                const pool = notOwned.length ? notOwned : SECRET_SKINS.filter(s => s.id !== playerSkinId);
+                return pool[Math.floor(Math.random() * pool.length)];
+            }
+            const options = SKINS.filter(s => s.id !== playerSkinId);
+            return options[Math.floor(Math.random() * options.length)];
+        }
+
+        function pickBotLevel() {
+            const d = state.activeDifficulty;
+            if (d === 'mixed') { const r = Math.random(); return r < 0.22 ? 'easy' : r < 0.55 ? 'medium' : r < 0.90 ? 'hard' : 'insane'; }
+            return d;
+        }
+
+        function botCount() {
+            let n = 0;
+            for (const s of snakes) if (s.isBot && !s.isDead) n++;
+            return n;
+        }
+
+        function createBot(mass) {
+            const name = makeBotName();
+            const pos = findSafeSpawn(spawnGap, spawnPlayerGap);
+            const bot = new Snake(Math.random().toString(), name, pos.x, pos.y, pickBotSkin(), true, pickBotLevel());
+            bot.mass = mass;
+            bot.cosmetics = randomBotCosmetics();
+            bot.placeAt(pos.x, pos.y, angleToCenter(pos.x, pos.y));
+            snakes.push(bot);
+            insertSnakeSegs(bot);                 // сразу в сетку, чтобы следующие боты не появились на нём
+        }
+
+        function spawnBotFarAway() {
+            createBot(INITIAL_MASS);
+        }
+
+        // Позиция для новой еды: по всей арене (вплоть до стены). Из 3 случайных мест берём самое «пустое»,
+        // поэтому съеденные участки пополняются, а плотность выравнивается по карте.
+        function foodPos() {
+            let best = null, bestSum = Infinity;
+            for (let k = 0; k < 3; k++) {
+                const p = spawnRandomInCircle(60);
+                const s = fgSum.length > 64 ? fgSum[cellOf(p.y, FOOD_CELL, fgDim) * fgDim + cellOf(p.x, FOOD_CELL, fgDim)] : 0;
+                if (s < bestSum) { bestSum = s; best = p; }
+            }
+            return best;
+        }
+
+        function spawnFood(count) {
+            for (let i = 0; i < count; i++) {
+                const pos = foodPos();
+                foods.push(new Food(pos.x, pos.y));
+            }
+        }
+
+        // «Поляна»: плотная россыпь еды с кусками покрупнее — приманка, ради которой стоит плыть через карту
+        function spawnFoodPatch() {
+            const c = spawnRandomInCircle(160);
+            const n = 12 + Math.floor(Math.random() * 20);
+            const rad = 90 + Math.random() * 160;
+            const maxR = WORLD_RADIUS - 50;
+            for (let i = 0; i < n; i++) {
+                const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * rad;
+                let x = c.x + Math.cos(a) * r, y = c.y + Math.sin(a) * r;
+                const dx = x - WORLD_CENTER, dy = y - WORLD_CENTER, d = Math.sqrt(dx * dx + dy * dy);
+                if (d > maxR) { x = WORLD_CENTER + dx / d * maxR; y = WORLD_CENTER + dy / d * maxR; }
+                const v = Math.min(6, Food.randomTier() + (Math.random() < 0.3 ? 1 : 0));
+                foods.push(new Food(x, y, v));
+            }
+            return n;
+        }
+
+        // Стартовая раскладка: часть еды россыпью, остальное равномерно по всей арене
+        function spawnFoodInitial(total) {
+            let left = Math.floor(total * 0.25);
+            let placed = 0;
+            while (left > 0) { const n = spawnFoodPatch(); left -= n; placed += n; }
+            spawnFood(Math.max(0, total - placed));
+        }
+
+        function spawnTokens() {
+            bugTokens = [];
+            phoneTokens = [];
+            const areaK = Math.max(0.6, Math.min(10, Math.pow(WORLD_RADIUS / 3350, 2)));
+            for (let i = 0, n = Math.round(TOKEN_BUGS * areaK); i < n; i++) {
+                const pos = spawnRandomInCircle(200);
+                bugTokens.push(new ItemToken(pos.x, pos.y, 'bug'));
+            }
+            for (let i = 0, n = Math.round(TOKEN_PHONES * areaK); i < n; i++) {
+                const pos = spawnRandomInCircle(200);
+                phoneTokens.push(new ItemToken(pos.x, pos.y, 'phone'));
+            }
+        }
+
+        function killSnake(snake, reason = "") {
+            if (snake.isDead) return;
+            snake.isDead = true;
+
+            // При смерти выпадает DEATH_DROP_PCT массы — не больше, чем было у змеи
+            const segs = snake.segments;
+            const dropMass = snake.mass * DEATH_DROP_PCT;
+            // Кусков столько, чтобы уместить всю выпадающую массу (макс. уровень еды = 6)
+            const minPieces = Math.ceil(dropMass / (6 * FOOD_UNIT));
+            const pieces = Math.max(6, Math.min(160, Math.max(Math.floor(segs.length / 2), minPieces)));
+            let left = dropMass;
+            for (let i = 0; i < pieces && left > 0; i++) {
+                const seg = segs[Math.min(segs.length - 1, Math.floor(i * segs.length / pieces))];
+                const remainingPieces = pieces - i;
+                let value = Math.round(left / remainingPieces / FOOD_UNIT);
+                value = Math.max(1, Math.min(6, value));
+                left -= value * FOOD_UNIT;
+                foods.push(new Food(seg.x + (Math.random() - 0.5) * 18, seg.y + (Math.random() - 0.5) * 18, value));
+            }
+
+            if (snake === player) {
+                audio.playDie();
+                endGame(reason);
+            }
+        }
+
+        /* --- MAIN GAME LOOP (фиксированный шаг: скорость не зависит от частоты монитора) --- */
+        let lastTime = performance.now();
+        let accumulator = 0;
+        let leaderboardTimer = 0;
+
+        function gameLoop(now) {
+            let frameDt = (now - lastTime) / 1000;
+            lastTime = now;
+            if (frameDt > 0.25) frameDt = 0.25;
+
+            if (state.isPlaying) {
+                accumulator += frameDt;
+                let steps = 0;
+                while (accumulator >= STEP && steps < 6) {
+                    updateGame(STEP);
+                    accumulator -= STEP;
+                    steps++;
+                    if (!state.isPlaying) break;
+                }
+                if (steps === 6) accumulator = 0;
+            } else {
+                accumulator = 0;
+            }
+
+            renderGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function distToSegmentsHit(snake, other) {
+            // Возвращает индекс сегмента other, в который врезалась голова snake, либо -1
+            const b = other.bbox;
+            const pad = snake.radius + other.radius;
+            if (snake.x < b.minX - pad || snake.x > b.maxX + pad || snake.y < b.minY - pad || snake.y > b.maxY + pad) return -1;
+            const lim = snake.radius * 0.8 + other.radius * 0.7;
+            const lim2 = lim * lim;
+            const segs = other.segments;
+            for (let i = 0; i < segs.length; i++) {
+                const dx = snake.x - segs[i].x, dy = snake.y - segs[i].y;
+                if (dx * dx + dy * dy < lim2) return i;
+            }
+            return -1;
+        }
+
+        // Жуки и телефоны тоже слегка притягиваются к игроку; возвращает расстояние после притяжения
+        function magnetToken(t) {
+            const dx = player.x - t.x, dy = player.y - t.y;
+            const d = Math.hypot(dx, dy);
+            const range = player.radius + t.radius + MAGNET_RANGE;
+            if (d < range && d > 1) {
+                const pull = Math.min(d, 2 + (1 - d / range) * 6);
+                t.x += (dx / d) * pull;
+                t.y += (dy / d) * pull;
+                return d - pull;
+            }
+            return d;
+        }
+
+        function compactSnakes() {
+            let w = 0;
+            for (let i = 0; i < snakes.length; i++) {
+                const s = snakes[i];
+                if (!s.isDead || s === player) snakes[w++] = s;
+            }
+            snakes.length = w;
+        }
+
+        function updateGame(dt) {
+            compactSnakes();
+            simTick++;
+            buildHeadGrid();
+            trackPlayerBehavior(dt);
+            if (player && !player.isDead) {
+                player.targetAngle = Math.atan2(mousePos.y, mousePos.x);
+            }
+
+            // Боты принимают решения (они ищут еду по сетке, обновлённой в конце прошлого шага)
+            for (const s of snakes) {
+                if (s.isBot && !s.isDead) s.updateSmartAI();
+            }
+
+            // Респавн ботов до целевого количества: пачками, чтобы 1000 змей восстанавливались быстро
+            botSpawnTimer += dt;
+            const spawnInterval = Math.max(0.1, Math.min(1.5, 45 / Math.max(1, state.targetBots)));
+            if (botSpawnTimer > spawnInterval) {
+                botSpawnTimer = 0;
+                const deficit = state.targetBots - botCount();
+                const batch = Math.min(deficit, Math.max(1, Math.ceil(state.targetBots / 120)));
+                for (let k = 0; k < batch; k++) spawnBotFarAway();
+            }
+
+            snakes.forEach(s => s.update(dt));
+
+            // Стена арены
+            for (const snake of snakes.slice()) {
+                if (snake.isDead || snake.spawnShield > 0) continue;
+                const distFromCenter = Math.hypot(snake.x - WORLD_CENTER, snake.y - WORLD_CENTER);
+                if (distFromCenter >= WORLD_RADIUS - snake.radius) {
+                    killSnake(snake, snake === player ? "Вы врезались в неоновое защитное поле!" : "");
+                    if (snake === player) return;
+                }
+            }
+
+            // Столкновения: голова проверяет только звенья в соседних клетках сетки
+            buildSegGrid();
+            const toKill = new Map();
+            const killedBy = new Map();
+            for (const snake of snakes) {
+                if (snake.isDead || snake.spawnShield > 0) continue;
+                const sr = snake.radius * 0.8;
+                const q = sr + 34;
+                const x0 = cellOf(snake.x - q, SEG_CELL, segDim), x1 = cellOf(snake.x + q, SEG_CELL, segDim);
+                const y0 = cellOf(snake.y - q, SEG_CELL, segDim), y1 = cellOf(snake.y + q, SEG_CELL, segDim);
+                let bodyHit = null, headHit = null;
+                scan:
+                for (let cy = y0; cy <= y1; cy++) {
+                    for (let cx = x0; cx <= x1; cx++) {
+                        for (let i = segHead[cy * segDim + cx]; i !== -1; i = segNext[i]) {
+                            const seg = segRef[i];
+                            const o = seg.o;
+                            if (o === snake || o.isDead || o.spawnShield > 0) continue;
+                            const lim = sr + o.radius * 0.7;
+                            const dx = snake.x - seg.x, dy = snake.y - seg.y;
+                            if (dx * dx + dy * dy < lim * lim) {
+                                if (seg.i <= 1) { if (!headHit) headHit = o; }
+                                else { bodyHit = o; break scan; }
+                            }
+                        }
+                    }
+                }
+                if (bodyHit) {
+                    toKill.set(snake, bodyHit === player ? "" : `Вас подрезал ${bodyHit.name}`);
+                    killedBy.set(snake, bodyHit);
+                } else if (headHit) {
+                    // Лоб в лоб: проигрывает та, что меньше. При равенстве гибнут обе.
+                    const ratio = snake.mass / headHit.mass;
+                    if (ratio < 0.97) { toKill.set(snake, `Вас съел ${headHit.name}`); killedBy.set(snake, headHit); }
+                    else if (ratio <= 1.03) toKill.set(snake, `Лобовое столкновение с ${headHit.name}`);
+                }
+            }
+            let playerDied = false;
+            for (const [snake, reason] of toKill) {
+                const killer = killedBy.get(snake);
+                if (killer && killer.mind) {
+                    killer.mind.heat = Math.min(1, killer.mind.heat + 0.35);
+                    killer.mind.fear *= 0.5;
+                    killStats[killer.mind.goal] = (killStats[killer.mind.goal] || 0) + 1;
+                }
+                if (snake !== player && killer === player) {
+                    aiProfile.kills++;
+                    if (snake.skin.secret) unlockSecretSkin(snake.skin);
+                }
+                killSnake(snake, reason);
+                if (snake === player) playerDied = true;
+            }
+            compactSnakes();
+            if (playerDied) return;
+
+            // Сбор еды: каждая змея смотрит только на еду в соседних клетках сетки
+            // (сетку обновляем раз в 5 шагов — дёшево даже при 25 000 кусков; в запросе есть запас на «устаревание»)
+            if (simTick % 5 === 1) rebuildFoodGrid();
+            let anyEaten = false;
+            for (const snake of snakes) {
+                if (snake.isDead) continue;
+                const r = snake.radius;
+                const range = r + 14 + 4 + MAGNET_RANGE + 60;  // 14 — макс. радиус еды, 60 — запас на сдвиг еды между обновлениями сетки
+                const cx0 = cellOf(snake.x - range, FOOD_CELL, fgDim), cx1 = cellOf(snake.x + range, FOOD_CELL, fgDim);
+                const cy0 = cellOf(snake.y - range, FOOD_CELL, fgDim), cy1 = cellOf(snake.y + range, FOOD_CELL, fgDim);
+                for (let cy = cy0; cy <= cy1; cy++) {
+                    for (let cx = cx0; cx <= cx1; cx++) {
+                        const cell = fgCells[cy * fgDim + cx];
+                        if (cell === undefined) continue;
+                        for (let i = 0; i < cell.length; i++) {
+                            const f = cell[i];
+                            if (f.dead) continue;
+                            const reach = r + f.radius + 4;
+                            const magR = reach + MAGNET_RANGE;
+                            const dx = snake.x - f.x, dy = snake.y - f.y;
+                            const d2 = dx * dx + dy * dy;
+                            if (d2 < reach * reach) {
+                                snake.mass = Math.min(MAX_MASS, snake.mass + f.value * FOOD_UNIT);
+                                if (snake === player) audio.playEat();
+                                f.dead = true;
+                                anyEaten = true;
+                            } else if (d2 < magR * magR) {
+                                // Еда засасывается в рот, чем ближе, тем быстрее
+                                const d = Math.sqrt(d2);
+                                const pull = Math.min(d - reach + 1, 2 + (1 - d / magR) * 7);
+                                f.x += (dx / d) * pull;
+                                f.y += (dy / d) * pull;
+                            }
+                        }
+                    }
+                }
+            }
+            if (anyEaten) {
+                let w = 0;
+                for (let i = 0; i < foods.length; i++) { const f = foods[i]; if (!f.dead) foods[w++] = f; }
+                foods.length = w;
+            }
+
+            // Не даём еде разрастаться бесконечно (после массовых смертей): убираем самую старую
+            if (foods.length > MAX_FOODS) foods.splice(0, foods.length - MAX_FOODS);
+
+            // Жуки и телефоны
+            for (let i = bugTokens.length - 1; i >= 0; i--) {
+                const t = bugTokens[i];
+                if (player && !player.isDead && magnetToken(t) < player.radius + t.radius) {
+                    state.runBugsCollected++;
+                    state.bugs++;
+                    localStorage.setItem('cw_bugs', state.bugs);
+                    audio.playItem(false);
+                    bugTokens.splice(i, 1);
+                    const pos = spawnRandomInCircle(200);
+                    bugTokens.push(new ItemToken(pos.x, pos.y, 'bug'));
+                }
+            }
+            for (let i = phoneTokens.length - 1; i >= 0; i--) {
+                const t = phoneTokens[i];
+                if (player && !player.isDead && magnetToken(t) < player.radius + t.radius) {
+                    state.runPhonesCollected++;
+                    state.phones++;
+                    localStorage.setItem('cw_phones', state.phones);
+                    audio.playItem(true);
+                    phoneTokens.splice(i, 1);
+                    const pos = spawnRandomInCircle(200);
+                    phoneTokens.push(new ItemToken(pos.x, pos.y, 'phone'));
+                }
+            }
+
+            // Естественная еда пополняется, но не выше лимита
+            if (foods.length < NATURAL_FOOD) {
+                const deficit = NATURAL_FOOD - foods.length;
+                spawnFood(Math.min(deficit, Math.max(40, Math.ceil(NATURAL_FOOD / 250))));
+                if (deficit > 80 && Math.random() < 0.04) spawnFoodPatch();      // время от времени где-то вырастает новая «поляна»
+            }
+
+            if (player && !player.isDead) {
+                camera.x += (player.x - camera.x) * 0.14;
+                camera.y += (player.y - camera.y) * 0.14;
+                // Зум учитывает и толщину, и длину змеи, чтобы большую змею было видно целиком
+                const sizeFactor = 1 + (player.radius - 13) * 0.045 + (player.targetLengthPx - 200) * 0.00006;
+                const targetZoom = Math.max(0.3, 1.0 / sizeFactor);
+                camera.zoom += (targetZoom - camera.zoom) * 0.05;
+
+                document.getElementById('hudScore').innerText = Math.floor(player.mass);
+                document.getElementById('hudBugs').innerText = state.bugs;
+                document.getElementById('hudPhones').innerText = state.phones;
+            }
+
+            leaderboardTimer -= dt;
+            if (leaderboardTimer <= 0) {
+                leaderboardTimer = 0.3;
+                updateLeaderboard();
+            }
+        }
+
+        function renderGame() {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const zoom = camera.zoom * viewScale;
+            ctx.save();
+            ctx.scale(dpr, dpr);
+            ctx.translate(viewW / 2, viewH / 2);
+            ctx.scale(zoom, zoom);
+            ctx.translate(-camera.x, -camera.y);
+
+            const margin = 300;
+            const viewLeft = camera.x - (viewW / 2) / zoom - margin;
+            const viewRight = camera.x + (viewW / 2) / zoom + margin;
+            const viewTop = camera.y - (viewH / 2) / zoom - margin;
+            const viewBottom = camera.y + (viewH / 2) / zoom + margin;
+            view.l = viewLeft; view.r = viewRight; view.t = viewTop; view.b = viewBottom;
+
+            drawWorldBackground(ctx, viewLeft, viewTop, viewRight, viewBottom);
+
+            for (let f of foods) {
+                if (f.x > viewLeft && f.x < viewRight && f.y > viewTop && f.y < viewBottom) f.draw(ctx);
+            }
+            for (let t of bugTokens) {
+                if (t.x > viewLeft && t.x < viewRight && t.y > viewTop && t.y < viewBottom) t.draw(ctx);
+            }
+            for (let t of phoneTokens) {
+                if (t.x > viewLeft && t.x < viewRight && t.y > viewTop && t.y < viewBottom) t.draw(ctx);
+            }
+            for (let s of snakes) {
+                const b = s.bbox; if (b.maxX > viewLeft && b.minX < viewRight && b.maxY > viewTop && b.minY < viewBottom) s.draw(ctx);
+            }
+
+            drawWorldBoundary(ctx);
+            ctx.restore();
+
+            if (state.isPlaying) renderMinimap();
+        }
+
+        function renderMinimap() {
+            minimapCtx.clearRect(0, 0, 90, 90);
+            minimapCtx.fillStyle = '#0b0f19';
+            minimapCtx.beginPath();
+            minimapCtx.arc(45, 45, 43, 0, Math.PI * 2);
+            minimapCtx.fill();
+            minimapCtx.strokeStyle = '#00E5FF';
+            minimapCtx.lineWidth = 1;
+            minimapCtx.stroke();
+
+            const scale = 86 / (WORLD_RADIUS * 2);
+
+            if (player && !player.isDead) {
+                minimapCtx.fillStyle = '#00E5FF';
+                minimapCtx.beginPath();
+                minimapCtx.arc(2 + player.x * scale, 2 + player.y * scale, 3.5, 0, Math.PI * 2);
+                minimapCtx.fill();
+            }
+
+            for (let s of snakes) {
+                if (s === player || s.isDead) continue;
+                minimapCtx.fillStyle = s.skin.secret ? '#FFD700' : 'rgba(0, 136, 255, 0.6)';
+                if (!s.skin.secret && snakes.length > 150) { minimapCtx.fillRect(1 + s.x * scale, 1 + s.y * scale, 1.6, 1.6); continue; }
+                minimapCtx.beginPath();
+                minimapCtx.arc(2 + s.x * scale, 2 + s.y * scale, s.skin.secret ? 3 : 1.8, 0, Math.PI * 2);
+                minimapCtx.fill();
+            }
+        }
+
+        function updateLeaderboard() {
+            const all = snakes.filter(s => !s.isDead).sort((a, b) => b.mass - a.mass);
+            leaderSnake = all.length ? all[0] : null;
+            leaderMass = leaderSnake ? leaderSnake.mass : 100;
+            for (const s of snakes) s.isLeader = (s === leaderSnake);
+            if (player && !player.isDead) {
+                document.getElementById('hudLength').innerText = Math.floor(player.mass);
+                document.getElementById('hudRank').innerText = all.indexOf(player) + 1;
+                document.getElementById('hudTotal').innerText = all.length;
+            }
+            const sorted = all.slice(0, 7);
+            const listEl = document.getElementById('leaderboardList');
+            listEl.innerHTML = '';
+
+            sorted.forEach((s, idx) => {
+                const li = document.createElement('li');
+                li.className = `flex justify-between items-center ${s === player ? 'font-black text-cyan-300' : ''}`;
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'truncate pr-1 min-w-0';
+                nameSpan.textContent = `${idx + 1}. ${s.name}`;
+                const massSpan = document.createElement('span');
+                massSpan.className = 'text-cyan-500 shrink-0';
+                massSpan.textContent = Math.floor(s.mass);
+                li.appendChild(nameSpan);
+                li.appendChild(massSpan);
+                listEl.appendChild(li);
+            });
+        }
+
+        function setDifficulty(diff) {
+            state.difficulty = diff;
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.className = "diff-btn py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400";
+            });
+            document.getElementById(`diff-${diff}`).className = "diff-btn py-2 text-xs rounded-lg border border-cyan-400 bg-cyan-950/60 text-cyan-200 font-bold";
+        }
+
+        function updateMenuUI() {
+            document.getElementById('menuHighScore').innerText = state.highScore;
+            document.getElementById('menuBugs').innerText = state.bugs;
+            document.getElementById('menuPhones').innerText = state.phones;
+            document.getElementById('shopBugs').innerText = state.bugs;
+            document.getElementById('shopPhones').innerText = state.phones;
+
+            const pct = Math.round(aiConfidence() * 100);
+            document.getElementById('aiLearnPct').innerText = pct + '%';
+            document.getElementById('aiLearnBar').style.width = pct + '%';
+            const known = aiProfile.seconds > 20;
+            document.getElementById('aiAggro').innerText = known ? Math.round(aiProfile.aggression * 100) + '%' : '–';
+            document.getElementById('aiBoost').innerText = known ? Math.round(aiProfile.boostRate * 100) + '%' : '–';
+            document.getElementById('aiCaution').innerText = known ? Math.round(aiProfile.caution * 100) + '%' : '–';
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.innerText = msg;
+            el.classList.remove('opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.add('opacity-0'), 4500);
+        }
+
+        function unlockSecretSkin(skin) {
+            if (state.unlockedSkins.includes(skin.id)) {
+                showToast(`✨ Ты победил «${skin.name}» — этот скин уже в гардеробе`);
+                return;
+            }
+            state.unlockedSkins.push(skin.id);
+            localStorage.setItem('cw_unlocked', JSON.stringify(state.unlockedSkins));
+            state.runNewSkins.push(skin.name);
+            audio.playUnlock();
+            showToast(`✨ Секретный скин «${skin.name}» добавлен в гардероб!`);
+        }
+
+        function startGame(mode) {
+            if (mode) state.mode = mode;
+            audio.init();
+            menuBgStop();
+            document.getElementById('customModal').classList.add('hidden');
+            document.getElementById('wardrobeModal').classList.add('hidden');
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('gameOverModal').classList.add('hidden');
+            document.getElementById('gameHud').classList.remove('hidden');
+
+            const nameInput = document.getElementById('playerNameInput').value.trim() || "Неоновый Червь";
+            const look = playerLook();              // обычный скин + косметика, либо особый облик «Царя»
+
+            // Настройки режима
+            const isCustom = state.mode === 'custom';
+            state.targetBots = isCustom ? state.custom.bots : TARGET_BOT_COUNT - 1;
+            state.activeDifficulty = isCustom ? state.custom.difficulty : state.difficulty;
+            // Арена растёт вместе с числом ботов: чем больше змей, тем больше карта (плотность чуть выше обычной)
+            const worldR = isCustom ? arenaRadiusFor(state.targetBots) : 3350;
+            setWorldRadius(worldR);
+            initGrids();
+            const areaRatio = Math.pow(WORLD_RADIUS / 3350, 2);
+            NATURAL_FOOD = isCustom ? Math.max(1800, Math.min(45000, Math.round(FOOD_PER_BASE_ARENA * areaRatio))) : FOOD_PER_BASE_ARENA;
+            MAX_FOODS = NATURAL_FOOD + Math.max(1100, Math.round(NATURAL_FOOD * 0.5));
+            aiLod = state.targetBots > 600 ? 2.2 : state.targetBots > 300 ? 1.6 : state.targetBots > 150 ? 1.25 : 1;
+            leaderMass = 100; leaderSnake = null; simTick = 0;
+            const nSnakes = state.targetBots + 1;
+            spawnGap = Math.max(250, Math.min(900, Math.floor(1.3 * WORLD_RADIUS / Math.sqrt(nSnakes))));
+            spawnPlayerGap = Math.min(1400, Math.round(spawnGap * 1.6));
+            state.runNewSkins = [];
+
+            foods = [];
+            snakes = [];
+            isBoosting = false;
+            botSpawnTimer = 0;
+            leaderboardTimer = 0;
+            accumulator = 0;
+
+            const startPos = spawnRandomInCircle(900);
+            player = new Snake('player', nameInput, startPos.x, startPos.y, look.skin);
+            player.cosmetics = look.cos;
+            snakes.push(player);
+            const startAngle = angleToCenter(startPos.x, startPos.y);
+            player.placeAt(startPos.x, startPos.y, startAngle);
+            buildSegGrid();
+            mousePos.x = Math.cos(startAngle) * 100;
+            mousePos.y = Math.sin(startAngle) * 100;
+            camera.x = player.x;
+            camera.y = player.y;
+            camera.zoom = 1;
+
+            spawnFoodInitial(NATURAL_FOOD);
+            rebuildFoodGrid();
+            spawnTokens();
+            const initialBots = isCustom ? state.targetBots : 12;
+            for (let i = 0; i < initialBots; i++) {
+                createBot(INITIAL_MASS + Math.random() * 20);
+            }
+            buildHeadGrid();
+
+            aiProfile.games++;
+            saveProfile();
+            if (look.tsar) showToast('👑 Царь на районе! Все склонились.');
+            if (isTouchDevice) {
+                touchHint.classList.remove('opacity-0');
+                setTimeout(() => touchHint.classList.add('opacity-0'), 4500);
+            }
+
+            state.isPlaying = true;
+            state.runBugsCollected = 0;
+            state.runPhonesCollected = 0;
+        }
+
+        function endGame(reason) {
+            state.isPlaying = false;
+            saveProfile();
+            releaseTouches();
+            const ns = document.getElementById('goNewSkins');
+            if (state.runNewSkins.length) {
+                ns.innerText = '✨ Новые скины в гардеробе: ' + state.runNewSkins.join(', ');
+                ns.classList.remove('hidden');
+            } else {
+                ns.classList.add('hidden');
+            }
+            document.getElementById('goAiNote').innerText = `🧠 ИИ изучил твой стиль на ${Math.round(aiConfidence() * 100)}%`;
+            document.getElementById('gameHud').classList.add('hidden');
+            joystickContainer.style.display = 'none';
+
+            const score = Math.floor(player ? player.mass : 0);
+            if (score > state.highScore) {
+                state.highScore = score;
+                localStorage.setItem('cw_highscore', state.highScore);
+            }
+
+            document.getElementById('deathReason').innerText = reason || "Вы столкнулись с соперником";
+            document.getElementById('goScore').innerText = score;
+            document.getElementById('goBugsCollected').innerText = `+${state.runBugsCollected} 🪲`;
+            document.getElementById('goPhonesCollected').innerText = `+${state.runPhonesCollected} 📱`;
+
+            document.getElementById('gameOverModal').classList.remove('hidden');
+            menuBgStart();
+            updateMenuUI();
+        }
+
+        function returnToMenu() {
+            document.getElementById('gameOverModal').classList.add('hidden');
+            document.getElementById('mainMenu').classList.remove('hidden');
+            updateMenuUI();
+        }
+
+        function openShop() {
+            renderShopSkins();
+            document.getElementById('shopModal').classList.remove('hidden');
+        }
+
+        function closeShop() {
+            document.getElementById('shopModal').classList.add('hidden');
+            updateMenuUI();
+        }
+
+        function renderShopSkins() {
+            const list = document.getElementById('skinList');
+            list.innerHTML = '';
+
+            SKINS.forEach(skin => {
+                const isUnlocked = state.unlockedSkins.includes(skin.id);
+                const isEquipped = state.equippedSkin === skin.id;
+                const currencyIcon = skin.currency === 'bugs' ? '🪲' : '📱';
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex items-center justify-between ${isEquipped ? 'border-cyan-400 bg-cyan-950/40' : 'border-cyan-900 bg-black/60'}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center border border-white/20" style="background:${skinBackground(skin)}"></div>
+                        <div>
+                            <span class="block font-bold text-sm text-cyan-100">${skin.name}</span>
+                            <span class="text-xs text-cyan-400">${isUnlocked ? 'Разблокировано' : `Цена: ${skin.price} ${currencyIcon}`}</span>
+                        </div>
+                    </div>
+                    <div>
+                        ${isEquipped 
+                            ? `<span class="text-xs font-black text-cyan-300 uppercase">Надето</span>`
+                            : isUnlocked 
+                                ? `<button onclick="equipSkin('${skin.id}')" class="px-3 py-1 text-xs font-bold rounded-lg bg-cyan-600 hover:bg-cyan-500 text-black">Надеть</button>`
+                                : `<button onclick="buySkin('${skin.id}', ${skin.price}, '${skin.currency}')" class="px-3 py-1 text-xs font-bold rounded-lg cyan-btn text-black">Купить</button>`
+                        }
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function buySkin(id, price, currency) {
+            const currentBalance = currency === 'bugs' ? state.bugs : state.phones;
+            if (currentBalance >= price) {
+                if (currency === 'bugs') {
+                    state.bugs -= price;
+                    localStorage.setItem('cw_bugs', state.bugs);
+                } else {
+                    state.phones -= price;
+                    localStorage.setItem('cw_phones', state.phones);
+                }
+                state.unlockedSkins.push(id);
+                state.equippedSkin = id;
+                localStorage.setItem('cw_unlocked', JSON.stringify(state.unlockedSkins));
+                localStorage.setItem('cw_skin', id);
+                audio.playBuy();
+                renderShopSkins();
+            }
+        }
+
+        function equipSkin(id) {
+            state.equippedSkin = id;
+            localStorage.setItem('cw_skin', id);
+            renderShopSkins();
+        }
+
+/* =====================================================================
+           АНИМИРОВАННЫЙ ФОН МЕНЮ: светящиеся шарики и ползающие червяки в разных скинах
+           ===================================================================== */
+        const orbSprites = {};
+        function orbSprite(hue) {
+            if (orbSprites[hue]) return orbSprites[hue];
+            const c = document.createElement('canvas');
+            c.width = c.height = 48;
+            const g = c.getContext('2d');
+            const grad = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.22, `hsl(${hue},95%,60%)`);
+            grad.addColorStop(0.5, `hsla(${hue},95%,55%,0.45)`);
+            grad.addColorStop(1, `hsla(${hue},95%,55%,0)`);
+            g.fillStyle = grad;
+            g.fillRect(0, 0, 48, 48);
+            orbSprites[hue] = c;
+            return c;
+        }
+
+        class MenuWorm {
+            constructor(W, H) {
+                this.skin = ALL_SKINS[Math.floor(Math.random() * ALL_SKINS.length)];
+                this.R = 11 + Math.random() * 11;
+                this.sp = this.R * 0.7;
+                this.n = 24 + Math.floor(Math.random() * 16);
+                this.speed = 55 + Math.random() * 55;
+                this.phase = Math.random() * 6.28;
+                this.freq = 0.4 + Math.random() * 0.5;
+                this.cos = Math.random() < 0.45 ? randomBotCosmetics() : null;
+                this.x = Math.random() * W;
+                this.y = Math.random() * H;
+                this.ang = Math.random() * 6.28;
+                this.t = Math.random() * 100;
+                this.segs = [];
+                for (let i = 0; i < this.n; i++) {
+                    this.segs.push({ x: this.x - Math.cos(this.ang) * this.sp * i, y: this.y - Math.sin(this.ang) * this.sp * i });
+                }
+            }
+            update(dt, W, H) {
+                this.t += dt;
+                this.ang += Math.sin(this.t * this.freq + this.phase) * 1.3 * dt;
+                const m = 90;
+                if (this.x < -m || this.x > W + m || this.y < -m || this.y > H + m) {
+                    const to = Math.atan2(H / 2 - this.y, W / 2 - this.x);
+                    this.ang += angDiff(this.ang, to) * Math.min(1, 2.5 * dt);
+                }
+                this.x += Math.cos(this.ang) * this.speed * dt;
+                this.y += Math.sin(this.ang) * this.speed * dt;
+                let px = this.x, py = this.y;
+                this.segs[0].x = px; this.segs[0].y = py;
+                for (let i = 1; i < this.segs.length; i++) {
+                    const s = this.segs[i];
+                    const dx = s.x - px, dy = s.y - py;
+                    const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
+                    s.x = px + dx / d * this.sp; s.y = py + dy / d * this.sp;
+                    px = s.x; py = s.y;
+                }
+            }
+            draw(g, now) {
+                const segs = this.segs, R = this.R, n = segs.length;
+                g.save();
+                g.lineCap = 'round'; g.lineJoin = 'round';
+                g.globalAlpha = 0.9;
+                g.beginPath();
+                g.moveTo(segs[0].x, segs[0].y);
+                for (let i = 1; i < n; i++) g.lineTo(segs[i].x, segs[i].y);
+                g.lineWidth = R * 2 + 4; g.strokeStyle = '#020408'; g.stroke();
+                const dark = shadeColor(this.skin.color, -0.28);
+                for (let i = 0; i < n - 1; i++) {
+                    const t1 = 1 - (i / n) * 0.35, t2 = 1 - ((i + 1) / n) * 0.35;
+                    g.beginPath();
+                    g.moveTo(segs[i].x, segs[i].y); g.lineTo(segs[i + 1].x, segs[i + 1].y);
+                    g.lineWidth = R * (t1 + t2);
+                    g.strokeStyle = segmentColor(this.skin, i, dark, n);
+                    g.stroke();
+                }
+                g.beginPath();
+                g.moveTo(segs[0].x, segs[0].y);
+                for (let i = 1; i < n; i++) g.lineTo(segs[i].x, segs[i].y);
+                g.lineWidth = R * 0.32; g.strokeStyle = 'rgba(255,255,255,0.2)'; g.stroke();
+                g.restore();
+
+                g.save();
+                g.translate(this.x, this.y); g.rotate(this.ang);
+                const ed = R * 0.52, er = R * 0.34, pr = er * 0.45;
+                for (const sd of [-1, 1]) {
+                    g.beginPath(); g.arc(ed * 0.5, sd * ed, er, 0, 6.283); g.fillStyle = '#fff'; g.fill();
+                    g.beginPath(); g.arc(ed * 0.5 + pr * 0.4, sd * ed, pr, 0, 6.283); g.fillStyle = '#0f172a'; g.fill();
+                }
+                g.restore();
+                if (this.cos) drawCosmetics(g, this.x, this.y, this.ang, R, this.cos, false, now);
+            }
+        }
+
+        let menuBgOn = false, menuBgLast = 0, menuWorms = [], menuOrbs = [], menuBgCtx = null, menuDpr = 1;
+
+        function menuResize() {
+            const el = document.getElementById('menuBg');
+            if (!el) return;
+            menuDpr = Math.min(window.devicePixelRatio || 1, 1.5);
+            el.width = Math.round(window.innerWidth * menuDpr);
+            el.height = Math.round(window.innerHeight * menuDpr);
+        }
+
+        function menuBgInit() {
+            const W = window.innerWidth, H = window.innerHeight;
+            menuOrbs = [];
+            for (let i = 0, n = LOW_FX ? 26 : 55; i < n; i++) {
+                menuOrbs.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30,
+                                s: 22 + Math.random() * 28, h: Math.floor(Math.random() * 12) * 30, ph: Math.random() * 6.28, t: Math.random() * 10 });
+            }
+            menuWorms = [];
+            for (let i = 0, n = LOW_FX ? 3 : 6; i < n; i++) menuWorms.push(new MenuWorm(W, H));
+        }
+
+        function menuBgFrame(now) {
+            if (!menuBgOn) return;
+            const dt = Math.min(0.05, Math.max(0, (now - menuBgLast) / 1000));
+            menuBgLast = now;
+            const W = window.innerWidth, H = window.innerHeight, g = menuBgCtx;
+            g.setTransform(menuDpr, 0, 0, menuDpr, 0, 0);
+            const bg = g.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0, 'rgba(3,6,14,0.94)');
+            bg.addColorStop(1, 'rgba(10,4,26,0.94)');
+            g.globalCompositeOperation = 'source-over';
+            g.fillStyle = bg;
+            g.fillRect(0, 0, W, H);
+            for (const o of menuOrbs) {
+                o.t += dt;
+                o.x += o.vx * dt; o.y += o.vy * dt + Math.sin(o.t * 1.3 + o.ph) * 12 * dt;
+                if (o.x < -40) o.x = W + 40; else if (o.x > W + 40) o.x = -40;
+                if (o.y < -40) o.y = H + 40; else if (o.y > H + 40) o.y = -40;
+                const s = o.s * (1 + 0.15 * Math.sin(o.t * 3 + o.ph));
+                g.drawImage(orbSprite(o.h), o.x - s / 2, o.y - s / 2, s, s);
+            }
+            for (const w of menuWorms) { w.update(dt, W, H); w.draw(g, now); }
+            requestAnimationFrame(menuBgFrame);
+        }
+
+        function menuBgStart() {
+            const el = document.getElementById('menuBg');
+            if (!el || menuBgOn) return;
+            menuResize();
+            menuBgCtx = el.getContext('2d');
+            if (!menuOrbs.length) menuBgInit();
+            el.style.display = 'block';
+            menuBgOn = true;
+            menuBgLast = performance.now();
+            requestAnimationFrame(menuBgFrame);
+        }
+        function menuBgStop() {
+            menuBgOn = false;
+            const el = document.getElementById('menuBg');
+            if (el) el.style.display = 'none';
+        }
+
+        /* --- ПРЕДПРОСМОТР СКИНА (с косметикой; у «Царя» — с наколками и куполами) --- */
+        function drawSkinPreview(cv, skin, cos) {
+            if (!cv) return;
+            const g = cv.getContext('2d');
+            const W = cv.width, H = cv.height;
+            g.clearRect(0, 0, W, H);
+            const n = 30, sp = W * 0.026, R = H * 0.17;
+            const pts = [];
+            for (let i = 0; i < n; i++) {
+                pts.push({ x: W * 0.78 - i * sp, y: H * 0.56 + Math.sin(i * 0.38 + 0.6) * H * 0.14 });
+            }
+            g.lineCap = 'round';
+            g.lineJoin = 'round';
+            if (skin.glow) { g.shadowColor = skin.glowColor || skin.color; g.shadowBlur = 14; }
+            g.beginPath();
+            pts.forEach((p, i) => { if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); });
+            g.lineWidth = R * 2 + 4;
+            g.strokeStyle = '#020408';
+            g.stroke();
+            g.shadowBlur = 0;
+
+            const dark = shadeColor(skin.color, -0.28);
+            for (let i = 0; i < n - 1; i++) {
+                const t1 = 1 - (i / n) * 0.35, t2 = 1 - ((i + 1) / n) * 0.35;
+                g.beginPath();
+                g.moveTo(pts[i].x, pts[i].y);
+                g.lineTo(pts[i + 1].x, pts[i + 1].y);
+                g.lineWidth = R * (t1 + t2);
+                g.strokeStyle = segmentColor(skin, i, dark, n);
+                g.stroke();
+            }
+            g.beginPath();
+            pts.forEach((p, i) => { if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); });
+            g.lineWidth = R * 0.32;
+            g.strokeStyle = 'rgba(255,255,255,0.22)';
+            g.stroke();
+
+            if (skin.tattoo === 'tsar') {
+                // у обычной игры «видимая область» ограничивает рисование наколок — для предпросмотра снимаем ограничение
+                const sv = { l: view.l, r: view.r, t: view.t, b: view.b };
+                view.l = -Infinity; view.r = Infinity; view.t = -Infinity; view.b = Infinity;
+                drawTsarBody(g, pts, R);
+                view.l = sv.l; view.r = sv.r; view.t = sv.t; view.b = sv.b;
+            }
+
+            const a = Math.atan2(pts[0].y - pts[1].y, pts[0].x - pts[1].x);
+            g.save();
+            g.translate(pts[0].x, pts[0].y);
+            g.rotate(a);
+            const ed = R * 0.52, er = R * 0.34, pr = er * 0.45;
+            for (const side of [-1, 1]) {
+                g.beginPath(); g.arc(ed * 0.5, side * ed, er + 1.5, 0, Math.PI * 2); g.fillStyle = '#0a0e17'; g.fill();
+                g.beginPath(); g.arc(ed * 0.5, side * ed, er, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill();
+                g.beginPath(); g.arc(ed * 0.5 + pr * 0.4, side * ed, pr, 0, Math.PI * 2); g.fillStyle = '#0f172a'; g.fill();
+            }
+            g.restore();
+            drawCosmetics(g, pts[0].x, pts[0].y, a, R, cos, false, performance.now());
+        }
+
+        const previewTimers = {};
+        function startPreview(canvasId, nameId) {
+            stopPreview(canvasId);
+            const draw = () => {
+                const look = playerLook();
+                drawSkinPreview(document.getElementById(canvasId), look.skin, look.cos);
+                const n = document.getElementById(nameId);
+                if (n) n.innerText = look.tsar ? 'Царь 👑' : look.skin.name + (look.skin.secret ? ' ✨' : '');
+            };
+            draw();
+            previewTimers[canvasId] = setInterval(draw, 100);
+        }
+        function stopPreview(canvasId) {
+            if (previewTimers[canvasId]) { clearInterval(previewTimers[canvasId]); delete previewTimers[canvasId]; }
+        }
+
+        /* --- ВЫБОР СКИНОВ И КОСМЕТИКИ (общий для гардероба и режима «Как душа скажет») --- */
+        const TAB_ON = 'flex-1 py-2 text-xs rounded-lg border border-cyan-300 bg-cyan-950/70 text-cyan-100 font-bold';
+        const TAB_OFF = 'flex-1 py-2 text-xs rounded-lg border border-cyan-900 bg-black/40 text-cyan-500';
+        const pickerTab = { wardrobe: 'skins', custom: 'skins' };
+        const pickerIds = {
+            wardrobe: ['wardrobeGrid', 'wardrobeHint', 'wardrobeTabSkins', 'wardrobeTabCos'],
+            custom: ['customSkinGrid', 'customSkinHint', 'customTabSkins', 'customTabCos']
+        };
+        let pendingBuy = null;
+
+        function setPickerTab(prefix, tab) {
+            pickerTab[prefix] = tab;
+            pendingBuy = null;
+            renderPicker(prefix);
+            document.getElementById(pickerIds[prefix][1]).textContent = '';
+        }
+
+        function renderPicker(prefix) {
+            const [gridId, hintId, tabS, tabC] = pickerIds[prefix];
+            const tab = pickerTab[prefix];
+            document.getElementById(tabS).className = tab === 'skins' ? TAB_ON : TAB_OFF;
+            document.getElementById(tabC).className = tab === 'cos' ? TAB_ON : TAB_OFF;
+            if (tab === 'skins') renderSkinGrid(gridId, hintId); else renderCosGrid(gridId, hintId);
+            if (isTsarName(currentPlayerName())) {
+                document.getElementById(hintId).textContent = '👑 Имя «царь» включает особый облик: наколки, золотые купола, корона и цепь. Смени имя — вернутся твои скин и косметика.';
+            }
+        }
+
+        function makeTile(icon, iconBg, name, badge, cls, onclick) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'relative flex flex-col items-center gap-1 p-2 rounded-xl border transition ' + cls;
+            const sw = document.createElement('div');
+            sw.className = 'w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-base';
+            if (iconBg) sw.style.background = iconBg;
+            sw.textContent = icon;
+            const nm = document.createElement('span');
+            nm.className = 'text-[9px] leading-tight text-center text-cyan-100 w-full truncate';
+            nm.textContent = name;
+            const bd = document.createElement('span');
+            bd.className = 'text-[9px] text-cyan-400';
+            bd.textContent = badge;
+            btn.appendChild(sw); btn.appendChild(nm); btn.appendChild(bd);
+            btn.onclick = onclick;
+            return btn;
+        }
+        function tileClass(equipped, owned) {
+            return equipped ? 'border-cyan-300 bg-cyan-950/70 ring-1 ring-cyan-300 tile-eq'
+                : owned ? 'border-cyan-800 bg-black/50 hover:border-cyan-500'
+                : 'border-cyan-950 bg-black/30 opacity-60';
+        }
+        function addGridHeader(grid, text) {
+            const h = document.createElement('div');
+            h.className = 'col-span-full text-[10px] uppercase tracking-wider text-cyan-500 mt-1';
+            h.textContent = text;
+            grid.appendChild(h);
+        }
+
+        function renderSkinGrid(gridId, hintId) {
+            const grid = document.getElementById(gridId);
+            const hint = document.getElementById(hintId);
+            grid.innerHTML = '';
+            const addTile = (skin) => {
+                const owned = state.unlockedSkins.includes(skin.id);
+                const equipped = state.equippedSkin === skin.id;
+                const hiddenSecret = skin.secret && !owned;
+                grid.appendChild(makeTile(
+                    hiddenSecret ? '?' : '', hiddenSecret ? '#111a2b' : skinBackground(skin),
+                    hiddenSecret ? '???' : skin.name,
+                    equipped ? '✓ Надето' : (owned ? (skin.secret ? '✨' : '') : (skin.secret ? '🔒' : '🔒 Магазин')),
+                    tileClass(equipped, owned),
+                    () => {
+                        if (owned) pickSkin(skin.id);
+                        else if (hint) {
+                            hint.textContent = skin.secret
+                                ? 'Секретный скин: его носят боты (шанс 1 из 100). Победи такого бота — скин твой! Он выделен золотым именем и точкой на карте.'
+                                : `«${skin.name}» покупается в магазине за ${skin.price} ${skin.currency === 'bugs' ? '🪲' : '📱'}.`;
+                        }
+                    }));
+            };
+            addGridHeader(grid, 'Обычные');
+            SKINS.forEach(addTile);
+            const found = SECRET_SKINS.filter(s => state.unlockedSkins.includes(s.id)).length;
+            addGridHeader(grid, `Секретные ${found}/${SECRET_SKINS.length}`);
+            SECRET_SKINS.forEach(addTile);
+        }
+
+        function saveCos() {
+            try {
+                localStorage.setItem('cw_cos_owned', JSON.stringify(state.cosOwned));
+                localStorage.setItem('cw_cos_eq', JSON.stringify(state.cosEq));
+            } catch (e) {}
+        }
+
+        function renderCosGrid(gridId, hintId) {
+            const grid = document.getElementById(gridId);
+            const hint = document.getElementById(hintId);
+            grid.innerHTML = '';
+            for (const sl of COS_SLOTS) {
+                addGridHeader(grid, sl.label);
+                grid.appendChild(makeTile('🚫', null, 'Нет', state.cosEq[sl.slot] === null ? '✓' : '',
+                    tileClass(state.cosEq[sl.slot] === null, true),
+                    () => { state.cosEq[sl.slot] = null; pendingBuy = null; saveCos(); refreshSkinUI(); }));
+                for (const c of COSMETICS.filter(x => x.slot === sl.slot)) {
+                    const owned = state.cosOwned.includes(c.id);
+                    const equipped = state.cosEq[sl.slot] === c.id;
+                    const icon = c.currency === 'bugs' ? '🪲' : '📱';
+                    grid.appendChild(makeTile(COS_ICONS[c.id], '#10192b', c.name,
+                        equipped ? '✓ Надето' : (owned ? '' : `${c.price} ${icon}`),
+                        tileClass(equipped, owned),
+                        () => onCosTap(c, hint)));
+                }
+            }
+        }
+
+        function onCosTap(c, hint) {
+            const icon = c.currency === 'bugs' ? '🪲' : '📱';
+            if (state.cosOwned.includes(c.id)) {
+                state.cosEq[c.slot] = state.cosEq[c.slot] === c.id ? null : c.id;
+                pendingBuy = null;
+                saveCos();
+                refreshSkinUI();
+                return;
+            }
+            const bal = c.currency === 'bugs' ? state.bugs : state.phones;
+            if (pendingBuy === c.id) {
+                if (bal >= c.price) {
+                    if (c.currency === 'bugs') { state.bugs -= c.price; localStorage.setItem('cw_bugs', state.bugs); }
+                    else { state.phones -= c.price; localStorage.setItem('cw_phones', state.phones); }
+                    state.cosOwned.push(c.id);
+                    state.cosEq[c.slot] = c.id;
+                    pendingBuy = null;
+                    saveCos();
+                    audio.playBuy();
+                    updateMenuUI();
+                    refreshSkinUI();
+                    if (hint) hint.textContent = `Куплено и надето: ${c.name}!`;
+                } else if (hint) {
+                    hint.textContent = `Не хватает ${c.price - bal} ${icon}. Собирай жуков и телефоны на арене!`;
+                }
+            } else {
+                pendingBuy = c.id;
+                if (hint) hint.textContent = `«${c.name}» — ${c.price} ${icon} (у тебя ${bal}). Нажми ещё раз, чтобы купить.`;
+            }
+        }
+
+        function pickSkin(id) {
+            state.equippedSkin = id;
+            localStorage.setItem('cw_skin', id);
+            refreshSkinUI();
+        }
+
+        function refreshSkinUI() {
+            if (!document.getElementById('wardrobeModal').classList.contains('hidden')) {
+                renderPicker('wardrobe');
+                updateWardrobeCount();
+            }
+            if (!document.getElementById('customModal').classList.contains('hidden')) {
+                renderPicker('custom');
+            }
+        }
+
+        function updateWardrobeCount() {
+            const owned = ALL_SKINS.filter(s => state.unlockedSkins.includes(s.id)).length;
+            const secret = SECRET_SKINS.filter(s => state.unlockedSkins.includes(s.id)).length;
+            document.getElementById('wardrobeCount').innerText = `${owned}/${ALL_SKINS.length} • секретных ${secret}/${SECRET_SKINS.length}`;
+        }
+
+        /* --- ГАРДЕРОБ --- */
+        function openWardrobe() {
+            document.getElementById('wardrobeModal').classList.remove('hidden');
+            renderPicker('wardrobe');
+            updateWardrobeCount();
+            document.getElementById('wardrobeHint').textContent = 'Выбери скин и косметику. Обычные скины и косметика покупаются, а секретные скины нужно выиграть у ботов.';
+            startPreview('wardrobePreview', 'wardrobeSkinName');
+        }
+        function closeWardrobe() {
+            document.getElementById('wardrobeModal').classList.add('hidden');
+            stopPreview('wardrobePreview');
+            updateMenuUI();
+        }
+
+        /* --- РЕЖИМ «КАК ДУША СКАЖЕТ» --- */
+        const CDIFF_ON = "py-2 text-xs rounded-lg border border-cyan-400 bg-cyan-950/60 text-cyan-200 font-bold";
+        const CDIFF_OFF = "py-2 text-xs rounded-lg border border-cyan-800 bg-black/40 text-cyan-400";
+
+        function arenaRadiusFor(bots) {
+            return Math.max(2400, Math.min(18000, Math.round(3350 * Math.pow(bots / 30, 0.45))));
+        }
+        function saveCustom() {
+            try { localStorage.setItem('cw_custom', JSON.stringify(state.custom)); } catch (e) {}
+        }
+        // Ползунок логарифмический: у малых чисел точность выше (1…1000 ботов)
+        function botsToSlider(n) { return Math.round(Math.log(n) / Math.log(1000) * 1000); }
+        function sliderToBots(p) { return Math.max(1, Math.min(1000, Math.round(Math.pow(1000, p / 1000)))); }
+        function onCustomSlider(p) { setCustomBots(sliderToBots(Number(p)), 'slider'); }
+        function onCustomNum(v) { setCustomBots(parseInt(v) || 1, 'num'); }
+        function setCustomBots(n, src) {
+            n = Math.max(1, Math.min(1000, Math.round(n)));
+            state.custom.bots = n;
+            document.getElementById('customBotsVal').innerText = n;
+            if (src !== 'slider') document.getElementById('customBots').value = botsToSlider(n);
+            if (src !== 'num') document.getElementById('customBotsNum').value = n;
+            const R = arenaRadiusFor(n);
+            const ratio = Math.pow(R / 3350, 2);
+            document.getElementById('customArenaInfo').innerText =
+                `Арена ⌀ ${(R * 2).toLocaleString('ru-RU')} px — в ${ratio.toFixed(1)}× больше обычной`;
+            const warn = document.getElementById('customWarn');
+            let msg = '';
+            if (n >= 300) msg = '⚠️ 300+ змей — нужен мощный компьютер';
+            else if (LOW_FX && n >= 100) msg = '📱 На телефоне 100+ змей могут лагать';
+            warn.innerText = msg;
+        }
+        function setCustomDifficulty(d) {
+            state.custom.difficulty = d;
+            ['easy', 'medium', 'hard', 'insane', 'mixed'].forEach(k => {
+                document.getElementById('cdiff-' + k).className = k === d ? CDIFF_ON : CDIFF_OFF;
+            });
+        }
+        function openCustom() {
+            setCustomBots(state.custom.bots);
+            setCustomDifficulty(state.custom.difficulty);
+            document.getElementById('customModal').classList.remove('hidden');
+            renderPicker('custom');
+            document.getElementById('customSkinHint').textContent = '';
+            startPreview('customPreview', 'customSkinName');
+        }
+        function closeCustom() {
+            document.getElementById('customModal').classList.add('hidden');
+            stopPreview('customPreview');
+            saveCustom();
+            updateMenuUI();
+        }
+        function startCustomGame() {
+            saveCustom();
+            closeCustom();
+            startGame('custom');
+        }
+
+        // Подсказка при вводе имени «царь»
+        function onNameInput() {
+            const el = document.getElementById('tsarHint');
+            if (el) el.classList.toggle('hidden', !isTsarName(currentPlayerName()));
+        }
+
+        menuBgStart();
+        onNameInput();
+
+        updateMenuUI();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
